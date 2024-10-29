@@ -102,7 +102,7 @@ class SensorManager:
         if 'json' in formats:
             # JSON Format mit Metadaten
             formatted_data['json'] = {
-                sensor_id: {
+                f"{sensor_id}_data": {
                     "info": {
                         "name": config['name'],
                         "location": config['location'],
@@ -154,10 +154,7 @@ class SensorManager:
         
         return {
             "simple": simple_data,
-            "json": {
-                "devices": json_data,
-                "system_timestamp": int(current_time * 1000)
-            }
+            "json": json_data
         }
         
     def send_telemetry(self, data):
@@ -166,15 +163,18 @@ class SensorManager:
             return
 
         try:
+            # Sende Simple-Format Daten
             if data.get("simple"):
                 self.client.send_telemetry(data["simple"])
                 logging.debug("Simple format telemetry sent successfully")
                 
+            # Sende JSON-Format Daten - jetzt einzeln pro Sensor
             if data.get("json"):
-                self.client.send_telemetry({
-                    "sensor_data": data["json"]
-                })
-                logging.debug("JSON format telemetry sent successfully")
+                for sensor_data_key, sensor_data in data["json"].items():
+                    self.client.send_telemetry({
+                        sensor_data_key: sensor_data
+                    })
+                    logging.debug(f"JSON format telemetry sent successfully for {sensor_data_key}")
                 
             logging.info("All telemetry sent successfully")
         except Exception as e:
