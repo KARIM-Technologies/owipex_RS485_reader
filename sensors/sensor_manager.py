@@ -88,31 +88,48 @@ class SensorManager:
         
     def read_all_sensors(self):
         """Read data from all sensors"""
-        data = {}
+        simple_data = {}  # Flaches Format für einfache Abfragen
+        detailed_data = {  # Detailliertes Format mit allen Informationen
+            "devices": {},
+            "timestamp": int(time.time() * 1000)  # Millisekunden seit Epoch
+        }
+        
         for sensor_id, sensor_info in self.sensors.items():
             sensor = sensor_info['sensor']
             config = sensor_info['config']
             sensor_data = sensor.read_data()
             
             if sensor_data:
-                # Add metadata to sensor readings
-                enriched_data = {
-                    f"{sensor_id}_{k}": {
-                        'value': v,
-                        'name': config['name'],
-                        'location': config['location'],
-                        'type': config['type']
-                    } for k, v in sensor_data.items()
-                }
-                data.update(enriched_data)
+                # Einfaches Format
+                for k, v in sensor_data.items():
+                    simple_data[f"{sensor_id}_{k}"] = v
                 
-        return data
+                # Detailliertes Format
+                detailed_data["devices"][sensor_id] = {
+                    "info": {
+                        "name": config['name'],
+                        "location": config['location'],
+                        "type": config['type'],
+                        "device_id": config['device_id']
+                    },
+                    "measurements": sensor_data,
+                    "status": "active"
+                }
+        
+        return {
+            "simple": simple_data,
+            "detailed": detailed_data
+        }
         
     def send_telemetry(self, data):
         """Send telemetry data to ThingsBoard"""
         if self.client and data:
             try:
-                self.client.send_telemetry(data)
+                # Sende beide Datenformate
+                self.client.send_telemetry(data["simple"])  # Einfaches Format für schnelle Abfragen
+                self.client.send_telemetry({
+                    "sensor_data": data["detailed"]  # Detailliertes Format unter eigenem Key
+                })
                 logging.info("Telemetry sent successfully")
             except Exception as e:
                 logging.error(f"Error sending telemetry: {e}")
