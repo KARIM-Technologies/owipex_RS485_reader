@@ -12,6 +12,9 @@ class ModbusClient:
     def read_register(self, start_address, register_count, data_format='>f'):
         return self.device_manager.read_register(self.device_id, start_address, register_count, data_format)
 
+    def read_radar_sensor(self, register_address):
+        return self.device_manager.read_radar_sensor(self.device_id, register_address)
+
 class DeviceManager:
     def __init__(self, port, baudrate, parity, stopbits, bytesize, timeout):
         self.ser = serial.Serial(
@@ -42,12 +45,13 @@ class DeviceManager:
         response = self.ser.read(100)
 
         if len(response) < 2:
+            print('Received response is shorter than expected')
             return self.last_read_values.get((device_id, start_address), None)
 
         received_crc = struct.unpack('<H', response[-2:])[0]
         calculated_crc = crcmod.predefined.mkPredefinedCrcFun('modbus')(response[:-2])
-        
         if received_crc != calculated_crc:
+            print('CRC error in response')
             return self.last_read_values.get((device_id, start_address), None)
 
         data = response[3:-2]
@@ -58,4 +62,9 @@ class DeviceManager:
             self.last_read_values[(device_id, start_address)] = value
             return value
         except struct.error:
+            print(f'Error decoding data from device {device_id}')
             return self.last_read_values.get((device_id, start_address), None)
+
+    def read_radar_sensor(self, device_id, register_address):
+        """Special method for reading radar sensor data with unsigned short format"""
+        return self.read_register(device_id, register_address, 1, data_format='>H')
