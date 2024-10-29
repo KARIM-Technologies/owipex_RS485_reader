@@ -39,7 +39,7 @@
         "name": "Trübungssensor 1",
         "location": "Einlauf",
         "transmission": {
-          "formats": ["json"],
+          "formats": ["simple", "json"],
           "interval": 10
         },
         "metadata": {
@@ -71,7 +71,7 @@
         "name": "Radar 1",
         "location": "Tank 1",
         "transmission": {
-          "formats": ["json"],
+          "formats": ["simple", "json"],
           "interval": 60
         },
         "metadata": {
