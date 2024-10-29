@@ -115,8 +115,12 @@ class SensorManager:
             sensor_data = sensor.read_data()
             
             if sensor_data:
-                # Keep the original format for sensor readings
-                data.update({f"{sensor_id}_{k}": v for k, v in sensor_data.items()})
+                # Add sensor metadata to each measurement
+                prefix = f"{sensor_id}"
+                for k, v in sensor_data.items():
+                    data[f"{prefix}_{k}"] = v
+                    data[f"{prefix}_name"] = sensor_info['config']['name']
+                    data[f"{prefix}_location"] = sensor_info['config']['location']
                 
         return data
         
