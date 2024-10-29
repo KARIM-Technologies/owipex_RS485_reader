@@ -1,7 +1,7 @@
 import struct
 import serial
 import crcmod.predefined
-from threading import Thread
+from threading import Thread, Lock
 import time
 
 class ModbusClient:
@@ -27,7 +27,7 @@ class DeviceManager:
         )
         self.devices = {}
         self.last_read_values = {}
-        self._lock = threading.Lock()
+        self._lock = Lock()
 
     def add_device(self, device_id):
         self.devices[device_id] = ModbusClient(self, device_id)
