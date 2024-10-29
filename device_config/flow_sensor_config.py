@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Company: KARIM Technologies
 # Author: Sayed Amir Karim
-# Copyright: 2023 KARIM Technologies
+# Copyright: 2024 KARIM Technologies
 #
 # License: All Rights Reserved
 #
