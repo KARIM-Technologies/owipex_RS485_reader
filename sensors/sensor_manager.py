@@ -37,7 +37,7 @@ class SensorManager:
         # Initialize ThingsBoard connection
         self.client = None
         self.running = False
-        self.last_read_time = 0
+        self.last_read_times = {}  # Separate last read time for each sensor
         self.READ_INTERVAL = int(os.environ.get('RS485_READ_INTERVAL', 15))
 
     def load_sensors(self, config_path):
@@ -64,7 +64,8 @@ class SensorManager:
                     )
                     sensors[sensor_config['id']] = {
                         'sensor': sensor,
-                        'config': sensor_config
+                        'config': sensor_config,
+                        'last_read': 0
                     }
                 else:
                     logging.warning(f"Unknown sensor type: {sensor_type}")
@@ -85,66 +86,108 @@ class SensorManager:
         
         self.client = TBDeviceMqttClient(server, port, access_token)
         self.client.connect()
-        
-    def read_all_sensors(self):
-        """Read data from all sensors"""
-        simple_data = {}  # Flaches Format für einfache Abfragen
-        detailed_data = {  # Detailliertes Format mit allen Informationen
-            "devices": {},
-            "timestamp": int(time.time() * 1000)  # Millisekunden seit Epoch
-        }
-        
-        for sensor_id, sensor_info in self.sensors.items():
-            sensor = sensor_info['sensor']
-            config = sensor_info['config']
-            sensor_data = sensor.read_data()
-            
-            if sensor_data:
-                # Einfaches Format
-                for k, v in sensor_data.items():
-                    simple_data[f"{sensor_id}_{k}"] = v
-                
-                # Detailliertes Format
-                detailed_data["devices"][sensor_id] = {
+
+    def format_sensor_data(self, sensor_id, sensor_info, sensor_data):
+        """Format sensor data according to configuration"""
+        config = sensor_info['config']
+        formats = config['transmission']['formats']
+        formatted_data = {}
+
+        if 'simple' in formats:
+            # Einfaches Format (key-value Paare)
+            formatted_data['simple'] = {
+                f"{sensor_id}_{k}": v for k, v in sensor_data.items()
+            }
+
+        if 'json' in formats:
+            # JSON Format mit Metadaten
+            formatted_data['json'] = {
+                sensor_id: {
                     "info": {
                         "name": config['name'],
                         "location": config['location'],
                         "type": config['type'],
                         "device_id": config['device_id']
                     },
+                    "metadata": config['metadata'],
                     "measurements": sensor_data,
+                    "timestamp": int(time.time() * 1000),
                     "status": "active"
                 }
+            }
+
+        return formatted_data
+
+    def should_read_sensor(self, sensor_info):
+        """Check if sensor should be read based on its interval"""
+        current_time = time.time()
+        interval = sensor_info['config']['transmission']['interval']
+        last_read = sensor_info['last_read']
+        
+        return (current_time - last_read) >= interval
+
+    def read_all_sensors(self):
+        """Read data from all sensors"""
+        simple_data = {}
+        json_data = {}
+        current_time = time.time()
+        
+        for sensor_id, sensor_info in self.sensors.items():
+            if not self.should_read_sensor(sensor_info):
+                continue
+
+            sensor = sensor_info['sensor']
+            sensor_data = sensor.read_data()
+            
+            if sensor_data:
+                # Format data according to sensor configuration
+                formatted_data = self.format_sensor_data(sensor_id, sensor_info, sensor_data)
+                
+                # Update simple and JSON data collections
+                if 'simple' in formatted_data:
+                    simple_data.update(formatted_data['simple'])
+                if 'json' in formatted_data:
+                    json_data.update(formatted_data['json'])
+                
+                # Update last read time
+                sensor_info['last_read'] = current_time
         
         return {
             "simple": simple_data,
-            "detailed": detailed_data
+            "json": {
+                "devices": json_data,
+                "system_timestamp": int(current_time * 1000)
+            }
         }
         
     def send_telemetry(self, data):
         """Send telemetry data to ThingsBoard"""
-        if self.client and data:
-            try:
-                # Sende beide Datenformate
-                self.client.send_telemetry(data["simple"])  # Einfaches Format für schnelle Abfragen
+        if not self.client or not data:
+            return
+
+        try:
+            if data.get("simple"):
+                self.client.send_telemetry(data["simple"])
+                logging.debug("Simple format telemetry sent successfully")
+                
+            if data.get("json"):
                 self.client.send_telemetry({
-                    "sensor_data": data["detailed"]  # Detailliertes Format unter eigenem Key
+                    "sensor_data": data["json"]
                 })
-                logging.info("Telemetry sent successfully")
-            except Exception as e:
-                logging.error(f"Error sending telemetry: {e}")
+                logging.debug("JSON format telemetry sent successfully")
+                
+            logging.info("All telemetry sent successfully")
+        except Exception as e:
+            logging.error(f"Error sending telemetry: {e}")
                 
     def run(self):
         """Main run loop"""
         self.running = True
         while self.running:
-            current_time = time.time()
-            if current_time - self.last_read_time >= self.READ_INTERVAL:
-                sensor_data = self.read_all_sensors()
-                if sensor_data:
-                    self.send_telemetry(sensor_data)
-                self.last_read_time = current_time
-            time.sleep(1)
+            sensor_data = self.read_all_sensors()
+            if sensor_data.get("simple") or sensor_data.get("json"):
+                self.send_telemetry(sensor_data)
+            time.sleep(1)  # Check every second
             
     def stop(self):
         """Stop the sensor manager"""

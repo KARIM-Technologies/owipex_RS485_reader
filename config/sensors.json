@@ -5,35 +5,80 @@
         "type": "ph",
         "device_id": 3,
         "name": "PH Sensor 1",
-        "location": "Tank 1"
+        "location": "Tank 1",
+        "transmission": {
+          "formats": ["simple", "json"],
+          "interval": 15
+        },
+        "metadata": {
+          "manufacturer": "Endress+Hauser",
+          "model": "Liquiline M CM42",
+          "serial": "DJ3422N"
+        }
       },
       {
         "id": "ph_2", 
         "type": "ph",
         "device_id": 5,
         "name": "PH Sensor 2",
-        "location": "Tank 2"
+        "location": "Tank 2",
+        "transmission": {
+          "formats": ["simple"],
+          "interval": 30
+        },
+        "metadata": {
+          "manufacturer": "Endress+Hauser",
+          "model": "Liquiline M CM42",
+          "serial": "DJ3423N"
+        }
       },
       {
         "id": "turbidity_1",
         "type": "turbidity",
-        "device_id": 2,
+        "device_id": 3,
         "name": "Trübungssensor 1",
-        "location": "Einlauf"
+        "location": "Einlauf",
+        "transmission": {
+          "formats": ["json"],
+          "interval": 10
+        },
+        "metadata": {
+          "manufacturer": "Hach",
+          "model": "TU5300sc",
+          "serial": "18D4422"
+        }
       },
       {
         "id": "turbidity_2",
         "type": "turbidity", 
         "device_id": 6,
         "name": "Trübungssensor 2",
-        "location": "Auslauf"
+        "location": "Auslauf",
+        "transmission": {
+          "formats": ["simple", "json"],
+          "interval": 10
+        },
+        "metadata": {
+          "manufacturer": "Hach",
+          "model": "TU5300sc",
+          "serial": "18D4423"
+        }
       },
       {
         "id": "radar_1",
         "type": "radar",
         "device_id": 1,
         "name": "Radar 1",
-        "location": "Tank 1"
+        "location": "Tank 1",
+        "transmission": {
+          "formats": ["json"],
+          "interval": 60
+        },
+        "metadata": {
+          "manufacturer": "VEGA",
+          "model": "VEGAPULS 64",
+          "serial": "43215532"
+        }
       }
     ]
   }
