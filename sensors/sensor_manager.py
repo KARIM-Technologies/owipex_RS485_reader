@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import logging
 from dotenv import load_dotenv
 from tb_gateway_mqtt import TBDeviceMqttClient
@@ -10,8 +11,8 @@ from .flow_sensor import FlowSensor
 from .radar_sensor import RadarSensor
 
 class SensorManager:
-    def __init__(self):
-        # Load environment variables from .envRS485
+    def __init__(self, config_path='config/sensors.json'):
+        # Load environment variables
         load_dotenv(dotenv_path='/etc/owipex/.envRS485')
         
         # Initialize logging
@@ -30,19 +31,48 @@ class SensorManager:
             timeout=1
         )
         
-        # Initialize sensors
-        self.sensors = {
-            'radar': RadarSensor(0x04, self.dev_manager),
-            'turbidity': TurbiditySensor(0x02, self.dev_manager),
-            'ph': PHSensor(0x03, self.dev_manager),
-            'flow': FlowSensor(0x01, self.dev_manager)
-        }
+        # Load sensor configuration
+        self.sensors = self.load_sensors(config_path)
         
         # Initialize ThingsBoard connection
         self.client = None
         self.running = False
         self.last_read_time = 0
         self.READ_INTERVAL = int(os.environ.get('RS485_READ_INTERVAL', 15))
+
+    def load_sensors(self, config_path):
+        """Load sensor configuration from JSON file"""
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            sensors = {}
+            sensor_classes = {
+                'ph': PHSensor,
+                'turbidity': TurbiditySensor,
+                'flow': FlowSensor,
+                'radar': RadarSensor
+            }
+            
+            for sensor_config in config['sensors']:
+                sensor_type = sensor_config['type']
+                if sensor_type in sensor_classes:
+                    sensor_class = sensor_classes[sensor_type]
+                    sensor = sensor_class(
+                        device_id=sensor_config['device_id'],
+                        device_manager=self.dev_manager
+                    )
+                    sensors[sensor_config['id']] = {
+                        'sensor': sensor,
+                        'config': sensor_config
+                    }
+                else:
+                    logging.warning(f"Unknown sensor type: {sensor_type}")
+            
+            return sensors
+        except Exception as e:
+            logging.error(f"Error loading sensor configuration: {e}")
+            raise
         
     def connect_to_server(self):
         """Connect to ThingsBoard server"""
@@ -59,10 +89,23 @@ class SensorManager:
     def read_all_sensors(self):
         """Read data from all sensors"""
         data = {}
-        for sensor_name, sensor in self.sensors.items():
+        for sensor_id, sensor_info in self.sensors.items():
+            sensor = sensor_info['sensor']
+            config = sensor_info['config']
             sensor_data = sensor.read_data()
+            
             if sensor_data:
-                data.update({f"{sensor_name}_{k}": v for k, v in sensor_data.items()})
+                # Add metadata to sensor readings
+                enriched_data = {
+                    f"{sensor_id}_{k}": {
+                        'value': v,
+                        'name': config['name'],
+                        'location': config['location'],
+                        'type': config['type']
+                    } for k, v in sensor_data.items()
+                }
+                data.update(enriched_data)
+                
         return data
         
     def send_telemetry(self, data):

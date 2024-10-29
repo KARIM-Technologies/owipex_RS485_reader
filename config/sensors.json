@@ -1,0 +1,39 @@
+{
+    "sensors": [
+      {
+        "id": "ph_1",
+        "type": "ph",
+        "device_id": 3,
+        "name": "PH Sensor 1",
+        "location": "Tank 1"
+      },
+      {
+        "id": "ph_2", 
+        "type": "ph",
+        "device_id": 5,
+        "name": "PH Sensor 2",
+        "location": "Tank 2"
+      },
+      {
+        "id": "turbidity_1",
+        "type": "turbidity",
+        "device_id": 2,
+        "name": "Trübungssensor 1",
+        "location": "Einlauf"
+      },
+      {
+        "id": "turbidity_2",
+        "type": "turbidity", 
+        "device_id": 6,
+        "name": "Trübungssensor 2",
+        "location": "Auslauf"
+      },
+      {
+        "id": "radar_1",
+        "type": "radar",
+        "device_id": 1,
+        "name": "Radar 1",
+        "location": "Tank 1"
+      }
+    ]
+  }
