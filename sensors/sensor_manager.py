@@ -39,6 +39,9 @@ class SensorManager:
         self.running = False
         self.last_read_time = 0
         self.READ_INTERVAL = int(os.environ.get('RS485_READ_INTERVAL', 15))
+        
+        # Send initial sensor configuration
+        self.send_sensor_config()
 
     def load_sensors(self, config_path):
         """Load sensor configuration from JSON file"""
@@ -86,25 +89,34 @@ class SensorManager:
         self.client = TBDeviceMqttClient(server, port, access_token)
         self.client.connect()
         
+    def send_sensor_config(self):
+        """Send sensor configuration as attributes to ThingsBoard"""
+        if self.client:
+            try:
+                config_data = {
+                    sensor_id: {
+                        'name': info['config']['name'],
+                        'location': info['config']['location'],
+                        'type': info['config']['type'],
+                        'device_id': info['config']['device_id']
+                    }
+                    for sensor_id, info in self.sensors.items()
+                }
+                self.client.send_attributes({'sensors': config_data})
+                logging.info("Sensor configuration sent successfully")
+            except Exception as e:
+                logging.error(f"Error sending sensor configuration: {e}")
+        
     def read_all_sensors(self):
         """Read data from all sensors"""
         data = {}
         for sensor_id, sensor_info in self.sensors.items():
             sensor = sensor_info['sensor']
-            config = sensor_info['config']
             sensor_data = sensor.read_data()
             
             if sensor_data:
-                # Add metadata to sensor readings
-                enriched_data = {
-                    f"{sensor_id}_{k}": {
-                        'value': v,
-                        'name': config['name'],
-                        'location': config['location'],
-                        'type': config['type']
-                    } for k, v in sensor_data.items()
-                }
-                data.update(enriched_data)
+                # Keep the original format for sensor readings
+                data.update({f"{sensor_id}_{k}": v for k, v in sensor_data.items()})
                 
         return data
         
