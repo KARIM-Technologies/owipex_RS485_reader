@@ -32,10 +32,10 @@ class SensorManager:
         
         # Initialize sensors
         self.sensors = {
-            'radar': RadarSensor(0x01, self.dev_manager),
+            'radar': RadarSensor(0x04, self.dev_manager),
             'turbidity': TurbiditySensor(0x02, self.dev_manager),
             'ph': PHSensor(0x03, self.dev_manager),
-            'flow': FlowSensor(0x04, self.dev_manager)
+            'flow': FlowSensor(0x01, self.dev_manager)
         }
         
         # Initialize ThingsBoard connection
