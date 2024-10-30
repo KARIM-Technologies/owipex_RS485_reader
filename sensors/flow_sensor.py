@@ -1,24 +1,29 @@
-from .sensor_base import SensorBase
 import struct
+from .sensor_base import SensorBase
 
 class FlowSensor(SensorBase):
     def __init__(self, device_id, device_manager):
         super().__init__(device_id, device_manager)
         
-    def read_float(self, start_address, byte_order='>'):
-        """Read and convert two 16-bit registers to a 32-bit float."""
-        value = self.device.read_register(start_address=start_address, register_count=2)
-        return value  # The device manager already handles the conversion
+    def read_float(self, registers, byte_order='>'):
+        """Convert two 16-bit registers to a 32-bit float."""
+        if byte_order == '>':  # Big endian
+            packed = struct.pack('>HH', *registers)
+        elif byte_order == '<':  # Little endian
+            packed = struct.pack('<HH', *registers)
+        else:
+            raise ValueError('Invalid byte order')
+        return struct.unpack('>f', packed)[0]
     
-    def read_long(self, start_address, byte_order='>'):
-        """Read and convert two 16-bit registers to a 32-bit signed integer."""
-        value = self.device.read_register(start_address=start_address, register_count=2)
-        return int(value)  # Convert to integer for accumulator values
-    
-    def read_single(self, start_address):
-        """Read a single 16-bit register."""
-        value = self.device.read_register(start_address=start_address, register_count=1)
-        return int(value)
+    def read_long(self, registers, byte_order='>'):
+        """Convert two 16-bit registers to a 32-bit signed integer."""
+        if byte_order == '>':  # Big endian
+            packed = struct.pack('>HH', *registers)
+        elif byte_order == '<':  # Little endian
+            packed = struct.pack('<HH', *registers)
+        else:
+            raise ValueError('Invalid byte order')
+        return struct.unpack('>i', packed)[0]
     
     def read_data(self):
         """Read flow sensor data with proper scaling and byte order."""
@@ -27,27 +32,34 @@ class FlowSensor(SensorBase):
             byte_order = '>'  # Try '>' for big-endian or '<' for little-endian
 
             # Read flow rate (m3/h) - 32-bit float
-            flow_rate = self.read_float(0x0001, byte_order)
+            flow_rate_regs = self.device.read_register(0x0001, 2)
+            flow_rate = self.read_float(flow_rate_regs, byte_order)
             
             # Read energy flow (kW) - 32-bit float
-            energy_flow = self.read_float(0x0003, byte_order)
+            energy_flow_regs = self.device.read_register(0x0003, 2)
+            energy_flow = self.read_float(energy_flow_regs, byte_order)
             
             # Read velocity (m/s) - 32-bit float
-            velocity = self.read_float(0x0005, byte_order)
+            velocity_regs = self.device.read_register(0x0005, 2)
+            velocity = self.read_float(velocity_regs, byte_order)
             
             # Read net flow accumulator - integer part (LONG)
-            net_flow_int = self.read_long(0x0025, byte_order)
+            net_flow_int_regs = self.device.read_register(0x0025, 2)
+            net_flow_int = self.read_long(net_flow_int_regs, byte_order)
             
             # Read net flow decimal fraction - float
-            net_flow_frac = self.read_float(0x0027, byte_order)
+            net_flow_frac_regs = self.device.read_register(0x0027, 2)
+            net_flow_frac = self.read_float(net_flow_frac_regs, byte_order)
             
             # Read net flow decimal point adjustment (n)
-            n = self.read_single(0x059F)
+            n_reg = self.device.read_register(0x059F, 1)
+            n = n_reg[0]
             if n > 32767:
                 n -= 65536  # Convert to signed integer if necessary
             
             # Read unit from register 1438 (0x059E)
-            unit_code = self.read_single(0x059E)
+            unit_reg = self.device.read_register(0x059E, 1)
+            unit_code = unit_reg[0]
             units = {0: 'm³', 1: 'L', 2: 'GAL', 3: 'ft³'}
             unit = units.get(unit_code, 'unknown')
             
@@ -55,8 +67,11 @@ class FlowSensor(SensorBase):
             net_flow = (net_flow_int + net_flow_frac) * (10 ** (n - 3))
             
             # Read temperatures (°C) - 32-bit float
-            temp_supply = self.read_float(0x0033, byte_order)
-            temp_return = self.read_float(0x0035, byte_order)
+            temp_supply_regs = self.device.read_register(0x0033, 2)
+            temp_supply = self.read_float(temp_supply_regs, byte_order)
+            
+            temp_return_regs = self.device.read_register(0x0035, 2)
+            temp_return = self.read_float(temp_return_regs, byte_order)
             
             return {
                 'flow_rate': round(flow_rate, 3),       # m³/h
