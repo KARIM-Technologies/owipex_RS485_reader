@@ -47,6 +47,11 @@ class FlowSensor(SensorBase):
                 data_format='>f'
             )
             
+            # Check if any readings are None before rounding
+            if any(v is None for v in [flow_rate, energy_flow, velocity, pos_flow_acc, temp_supply, temp_return]):
+                print("Warning: One or more sensor readings returned None")
+                return None
+            
             return {
                 'flow_rate': round(flow_rate, 3),  # m3/h
                 'energy_flow': round(energy_flow, 3),  # kW
