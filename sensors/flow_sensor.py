@@ -7,33 +7,28 @@ class FlowSensor(SensorBase):
     def read_data(self):
         """Read flow sensor data"""
         try:
-            # Read flow accumulator integer part (32-bit LONG)
+            # Read flow accumulator integer part only (32-bit LONG)
             flow_int_low = self.device.read_register(0x0009)
             flow_int_high = self.device.read_register(0x0010)
             flow_integer = (flow_int_high << 16) | flow_int_low
-            
-            # Read flow accumulator decimal part (32-bit REAL)
-            flow_decimal = self.device.read_flow_sensor(0x0011)  # Reads both 0x0011 and 0x0012
             
             # Read unit and decimal point configuration
             flow_unit = self.device.read_register(0x1438)  # 0=m3, 1=L, 2=GAL, 3=CF
             flow_decimal_point = self.device.read_register(0x1439)
             
             # Calculate total flow with correct scaling
-            total_flow = (flow_integer + flow_decimal) * (10 ** (flow_decimal_point - 3))
+            total_flow = flow_integer * (10 ** (flow_decimal_point - 3))
             
-            # Read energy accumulator
+            # Read energy accumulator integer part only
             energy_int_low = self.device.read_register(0x0013)
             energy_int_high = self.device.read_register(0x0014)
             energy_integer = (energy_int_high << 16) | energy_int_low
-            
-            energy_decimal = self.device.read_flow_sensor(0x0015)  # Reads both 0x0015 and 0x0016
             
             energy_decimal_point = self.device.read_register(0x1440)
             energy_unit = self.device.read_register(0x1441)
             
             # Calculate total energy with correct scaling
-            total_energy = (energy_integer + energy_decimal) * (10 ** (energy_decimal_point - 4))
+            total_energy = energy_integer * (10 ** (energy_decimal_point - 4))
             
             # Read other sensor values
             flow_rate = self.device.read_flow_sensor(0x0001)  # m3/h
