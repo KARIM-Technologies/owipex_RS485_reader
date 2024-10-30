@@ -80,5 +80,21 @@
           "serial": "43215532"
         }
       }
+      {
+        "id": "flow_1",
+        "type": "ultrasonic",
+        "device_id": 10,
+        "name": "Ultrasonic 1",
+        "location": "Tank 1",
+        "transmission": {
+          "formats": ["simple", "json"],
+          "interval": 60
+        },
+        "metadata": {
+          "manufacturer": "VEGA",
+          "model": "VEGAPULS 64",
+          "serial": "43215532"
+        }
+      }
     ]
   }
