@@ -35,6 +35,13 @@ class FlowSensor(SensorBase):
                 data_format='>l'  # 32-bit long integer
             )
             
+            # Read positive flow accumulator fraction part (REG 0011-0012)
+            pos_flow_acc_frac = self.device.read_register(
+                start_address=0x0011,
+                register_count=2,
+                data_format='>f'  # 32-bit float
+            )
+            
             # Read flow decimal point (REG 1439)
             flow_decimal_point = self.device.read_register(
                 start_address=0x1439,
@@ -47,24 +54,13 @@ class FlowSensor(SensorBase):
                 register_count=1
             )
             
-            # Calculate actual flow accumulator value
-            if pos_flow_acc_int is not None and flow_decimal_point is not None:
-                pos_flow_acc = pos_flow_acc_int * (10 ** (flow_decimal_point - 3))
+            # Calculate actual flow accumulator value according to formula (N+Nf)×10^(n-3)
+            if all(v is not None for v in [pos_flow_acc_int, pos_flow_acc_frac, flow_decimal_point]):
+                pos_flow_acc = (pos_flow_acc_int + pos_flow_acc_frac) * (10 ** (flow_decimal_point - 3))
             else:
                 pos_flow_acc = None
                 
             # Read temperatures (°C) - IEEE754 format
-            # First verify register 361 for correct addressing
-            reg_361_check = self.device.read_register(
-                start_address=0x0361,
-                register_count=2,
-                data_format='>f'
-            )
-            
-            if reg_361_check is None or abs(reg_361_check - 361.00) > 0.01:
-                print("Warning: Register addressing verification failed")
-                return None
-                
             temp_supply = self.device.read_register(
                 start_address=0x0033, 
                 register_count=2,
@@ -94,7 +90,7 @@ class FlowSensor(SensorBase):
                 'flow_rate': round(flow_rate, 3),  # m3/h
                 'energy_flow': round(energy_flow, 3),  # kW
                 'velocity': round(velocity, 3),  # m/s
-                'pos_flow_acc': pos_flow_acc,  # Based on flow_unit
+                'pos_flow_acc': round(pos_flow_acc, 3),  # Based on flow_unit
                 'pos_flow_acc_unit': current_flow_unit,
                 'temp_supply': round(temp_supply, 2),  # °C
                 'temp_return': round(temp_return, 2)  # °C
