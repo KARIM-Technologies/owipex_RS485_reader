@@ -82,7 +82,7 @@
       },
       {
         "id": "flow_1",
-        "type": "ultrasonic",
+        "type": "flow",
         "device_id": 10,
         "name": "Ultrasonic 1",
         "location": "Tank 1",
