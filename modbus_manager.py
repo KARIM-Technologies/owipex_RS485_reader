@@ -9,7 +9,7 @@ class ModbusClient:
         self.device_manager = device_manager
         self.device_id = device_id
 
-    def read_register(self, start_address, register_count, data_format='>f'):
+    def read_register(self, start_address, register_count=1, data_format='>H'):
         return self.device_manager.read_register(self.device_id, start_address, register_count, data_format)
 
     def read_radar_sensor(self, register_address):
@@ -47,13 +47,13 @@ class DeviceManager:
             response = self.ser.read(expected_length)
             return response
 
-    def read_register(self, device_id, start_address, register_count, data_format):
+    def read_register(self, device_id, start_address, register_count=1, data_format='>H'):
         function_code = 0x03
         message = struct.pack('>B B H H', device_id, function_code, start_address, register_count)
         crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
         message += struct.pack('<H', crc16)
 
-        expected_length = 9
+        expected_length = 5 + (register_count * 2)
         response = self._send_and_receive(message, expected_length)
 
         if len(response) < expected_length:
@@ -66,10 +66,8 @@ class DeviceManager:
             return self.last_read_values.get((device_id, start_address), None)
 
         data = response[3:-2]
-        swapped_data = data[2:4] + data[0:2]
-        
         try:
-            value = struct.unpack(data_format, swapped_data)[0]
+            value = struct.unpack(data_format, data)[0]
             self.last_read_values[(device_id, start_address)] = value
             return value
         except struct.error:
