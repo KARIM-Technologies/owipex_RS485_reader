@@ -7,16 +7,17 @@ class RadarSensor(SensorBase):
     def read_data(self):
         """Read radar sensor data"""
         try:
-            # Using specific radar sensor reading method with unsigned short format
+            # Lese Füllstand (Register 0x0001)
             measured_air_distance = self.device.read_radar_sensor(register_address=0x0001)
             
             if measured_air_distance is None:
-                print("Error reading radar sensor")
+                self.logger.error(f"Fehler beim Lesen des Füllstands von Gerät {self.device_id}")
                 return None
                 
+            self.logger.debug(f"Gemessene Luftstrecke: {measured_air_distance}")
             return {
                 'measured_air_distance': measured_air_distance
             }
         except Exception as e:
-            print(f"Error reading radar sensor: {e}")
+            self.logger.error(f"Fehler beim Lesen des Radarsensors (ID: {self.device_id}): {str(e)}")
             return None

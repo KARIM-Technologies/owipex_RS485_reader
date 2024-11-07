@@ -7,12 +7,23 @@ class TurbiditySensor(SensorBase):
     def read_data(self):
         """Read turbidity sensor data"""
         try:
-            turbidity = self.device.read_register(start_address=0x0001, register_count=2)
-            temperature = self.device.read_register(start_address=0x0003, register_count=2)
+            # Lese Trübung (Register 0x0001, 2 Register für Float)
+            turbidity = self.device.read_register(start_address=0x0001, register_count=2, data_format='>f')
+            if turbidity is None:
+                self.logger.error(f"Fehler beim Lesen der Trübung von Gerät {self.device_id}")
+                return None
+                
+            # Lese Temperatur (Register 0x0003, 2 Register für Float)
+            temperature = self.device.read_register(start_address=0x0003, register_count=2, data_format='>f')
+            if temperature is None:
+                self.logger.error(f"Fehler beim Lesen der Temperatur von Gerät {self.device_id}")
+                return None
+                
+            self.logger.debug(f"Trübung: {turbidity}, Temperatur: {temperature}")
             return {
                 'turbidity': turbidity,
                 'temperature': temperature
             }
         except Exception as e:
-            print(f"Error reading turbidity sensor: {e}")
+            self.logger.error(f"Fehler beim Lesen des Trübungssensors (ID: {self.device_id}): {str(e)}")
             return None

@@ -7,12 +7,23 @@ class PHSensor(SensorBase):
     def read_data(self):
         """Read pH sensor data"""
         try:
-            ph_value = self.device.read_register(start_address=0x0001, register_count=2)
-            temperature = self.device.read_register(start_address=0x0003, register_count=2)
+            # Lese PH-Wert (Register 0x0001, 2 Register für Float)
+            ph_value = self.device.read_register(start_address=0x0001, register_count=2, data_format='>f')
+            if ph_value is None:
+                self.logger.error(f"Fehler beim Lesen des PH-Werts von Gerät {self.device_id}")
+                return None
+                
+            # Lese Temperatur (Register 0x0003, 2 Register für Float)
+            temperature = self.device.read_register(start_address=0x0003, register_count=2, data_format='>f')
+            if temperature is None:
+                self.logger.error(f"Fehler beim Lesen der Temperatur von Gerät {self.device_id}")
+                return None
+                
+            self.logger.debug(f"PH-Wert: {ph_value}, Temperatur: {temperature}")
             return {
                 'ph_value': ph_value,
                 'temperature': temperature
             }
         except Exception as e:
-            print(f"Error reading pH sensor: {e}")
+            self.logger.error(f"Fehler beim Lesen des PH-Sensors (ID: {self.device_id}): {str(e)}")
             return None

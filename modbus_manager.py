@@ -3,6 +3,7 @@ import serial
 import crcmod.predefined
 from threading import Thread, Lock
 import time
+import logging
 
 class ModbusClient:
     def __init__(self, device_manager, device_id):
@@ -51,29 +52,38 @@ class DeviceManager:
             return response
 
     def read_register(self, device_id, start_address, register_count=1, data_format='>H'):
-        function_code = 0x03
-        message = struct.pack('>B B H H', device_id, function_code, start_address, register_count)
-        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
-        message += struct.pack('<H', crc16)
-
-        expected_length = 5 + (register_count * 2)
-        response = self._send_and_receive(message, expected_length)
-
-        if len(response) < expected_length:
-            return self.last_read_values.get((device_id, start_address), None)
-
-        received_crc = struct.unpack('<H', response[-2:])[0]
-        calculated_crc = crcmod.predefined.mkPredefinedCrcFun('modbus')(response[:-2])
-        
-        if received_crc != calculated_crc:
-            return self.last_read_values.get((device_id, start_address), None)
-
-        data = response[3:-2]
+        logger = logging.getLogger('ModbusManager')
         try:
-            value = struct.unpack(data_format, data)[0]
-            self.last_read_values[(device_id, start_address)] = value
-            return value
-        except struct.error:
+            function_code = 0x03
+            message = struct.pack('>B B H H', device_id, function_code, start_address, register_count)
+            crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
+            message += struct.pack('<H', crc16)
+
+            expected_length = 5 + (register_count * 2)
+            response = self._send_and_receive(message, expected_length)
+
+            if len(response) < expected_length:
+                logger.error(f"Keine oder unvollständige Antwort von Gerät {device_id}, Register {hex(start_address)}")
+                return self.last_read_values.get((device_id, start_address), None)
+
+            received_crc = struct.unpack('<H', response[-2:])[0]
+            calculated_crc = crcmod.predefined.mkPredefinedCrcFun('modbus')(response[:-2])
+            
+            if received_crc != calculated_crc:
+                logger.error(f"CRC-Fehler bei Gerät {device_id}, Register {hex(start_address)}")
+                return self.last_read_values.get((device_id, start_address), None)
+
+            data = response[3:-2]
+            try:
+                value = struct.unpack(data_format, data)[0]
+                self.last_read_values[(device_id, start_address)] = value
+                logger.debug(f"Erfolgreich gelesen von Gerät {device_id}, Register {hex(start_address)}: {value}")
+                return value
+            except struct.error as e:
+                logger.error(f"Fehler beim Entpacken der Daten von Gerät {device_id}, Register {hex(start_address)}: {e}")
+                return self.last_read_values.get((device_id, start_address), None)
+        except Exception as e:
+            logger.error(f"Allgemeiner Fehler beim Lesen von Gerät {device_id}, Register {hex(start_address)}: {e}")
             return self.last_read_values.get((device_id, start_address), None)
 
     def read_radar_sensor(self, device_id, register_address):
