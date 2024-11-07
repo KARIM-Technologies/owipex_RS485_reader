@@ -35,7 +35,7 @@
       {
         "id": "radar_1",
         "type": "radar",
-        "device_id": 1,
+        "device_id": 11,
         "name": "Radar 1",
         "location": "Tank 1",
         "transmission": {
