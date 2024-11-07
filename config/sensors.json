@@ -23,7 +23,7 @@
         "name": "PH Sensor 2",
         "location": "Tank 2",
         "transmission": {
-          "formats": ["simple"],
+          "formats": ["simple", "json"],
           "interval": 30
         },
         "metadata": {
@@ -35,7 +35,7 @@
       {
         "id": "turbidity_1",
         "type": "turbidity",
-        "device_id": 3,
+        "device_id": 2,
         "name": "Trübungssensor 1",
         "location": "Einlauf",
         "transmission": {
