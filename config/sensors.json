@@ -65,14 +65,14 @@
         }
       },
       {
-        "id": "flow_1",
+        "id": "flow_2",
         "type": "flow",
         "device_id": 41,
         "name": "FT11 FlowSensor",
         "location": "Tank 1",
         "transmission": {
           "formats": ["simple", "json"],
-          "interval": 65
+          "interval": 64
         },
         "metadata": {
           "manufacturer": "VEGA",
