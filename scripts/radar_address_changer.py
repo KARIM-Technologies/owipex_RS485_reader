@@ -18,6 +18,26 @@ def setup_logging():
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
+def test_radar_communication(device):
+    """
+    Testet die Kommunikation mit dem Radarsensor
+    
+    Returns:
+        bool: True wenn erfolgreich, False wenn fehlgeschlagen
+    """
+    try:
+        # Versuche einen Wert zu lesen
+        value = device.read_radar_sensor(register_address=0x0001)
+        if value is not None:
+            logging.info(f"Kommunikationstest erfolgreich. Aktueller Messwert: {value}")
+            return True
+        else:
+            logging.error("Kommunikationstest fehlgeschlagen: Keine Daten empfangen")
+            return False
+    except Exception as e:
+        logging.error(f"Kommunikationstest fehlgeschlagen: {e}")
+        return False
+
 def change_radar_address(port: str, current_address: int, new_address: int) -> bool:
     """
     Ändert die Modbus-Adresse des Radarsensors.
@@ -32,6 +52,7 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
     """
     dev_manager = None
     try:
+        logging.info(f"Initialisiere Verbindung auf Port {port}...")
         # Initialisiere ModbusManager mit Standard-Einstellungen
         dev_manager = DeviceManager(
             port=port,
@@ -43,24 +64,34 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
         )
 
         # Verbinde mit dem Gerät unter der aktuellen Adresse
+        logging.info(f"Verbinde mit Gerät auf Adresse {current_address}...")
         device = dev_manager.add_device(device_id=current_address)
 
-        # Register für Geräteadresse ist typischerweise 0x2000
-        # Schreibe neue Adresse - write_registers statt write_register
+        # Teste erst die Kommunikation
+        logging.info("Teste Kommunikation mit dem Gerät...")
+        if not test_radar_communication(device):
+            logging.error("Konnte keine Verbindung zum Gerät herstellen")
+            return False
+
+        # Register für Geräteadresse ist 0x2000
+        logging.info(f"Ändere Geräteadresse von {current_address} zu {new_address}...")
         device.write_registers(start_address=0x2000, values=[new_address])
         
         logging.info(f"Adressänderung durchgeführt. Warte 3 Sekunden...")
         time.sleep(3)  # Warte auf Reset des Geräts
         
         # Versuche mit der neuen Adresse zu kommunizieren
+        logging.info(f"Versuche Verbindung mit neuer Adresse {new_address}...")
         dev_manager.remove_device(current_address)
         new_device = dev_manager.add_device(device_id=new_address)
         
-        # Teste die Kommunikation - read_registers statt read_register
-        test_read = new_device.read_registers(start_address=0x0001, register_count=1)
-        logging.info(f"Erfolgreich mit neuer Adresse verbunden. Test-Lesung: {test_read}")
-        
-        return True
+        # Teste die Kommunikation mit der neuen Adresse
+        if test_radar_communication(new_device):
+            logging.info("Erfolgreich mit neuer Adresse verbunden!")
+            return True
+        else:
+            logging.error("Konnte keine Verbindung mit neuer Adresse herstellen")
+            return False
 
     except Exception as e:
         logging.error(f"Fehler beim Ändern der Geräteadresse: {e}")
