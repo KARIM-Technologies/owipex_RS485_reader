@@ -31,7 +31,7 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
         new_device_id: Neue gewünschte Geräteadresse
         port: Serieller Port (Standard: /dev/ttyS0)
     """
-    function_code = 0x06  # Function code for Write Single Register
+    function_code = 0x10  # Function code for Write Multiple Registers
     register_address = 0x2000  # Address for the device id register
     crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')
 
@@ -56,31 +56,41 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
 
         logging.info("Kommunikationstest erfolgreich")
 
-        # Write new address
-        message = struct.pack('>B B H H', old_device_id, function_code, register_address, new_device_id)
+        # Write new address using function code 0x10
+        register_count = 1
+        byte_count = 2  # 2 bytes per register
+        message = struct.pack('>B B H H B', old_device_id, function_code, register_address, register_count, byte_count)
+        message += struct.pack('>H', new_device_id)  # Data to write
         message += struct.pack('<H', crc16(message))
 
+        logging.info(f"Sende Adressänderungsbefehl: {message.hex()}")
         ser.write(message)
-        response = ser.read(8)  # Response size for Write Single Register is always 8 bytes
+        response = ser.read(8)  # Response size for Write Multiple Registers
 
         if len(response) < 8:
             raise Exception('Ungültige Antwort: weniger als 8 Bytes')
 
-        received_device_id, received_function_code, received_register_address, received_value, received_crc = struct.unpack('>B B H H H', response)
+        logging.info(f"Empfangene Antwort: {response.hex()}")
+        
+        received_device_id = response[0]
+        received_function_code = response[1]
+        received_register_address = struct.unpack('>H', response[2:4])[0]
+        received_register_count = struct.unpack('>H', response[4:6])[0]
+        received_crc = struct.unpack('<H', response[6:8])[0]
 
         print(f'Antwort vom Gerät:')
         print(f'Geräte ID: {received_device_id} (0x{received_device_id:02x} hex)')
         print(f'Funktionscode: {received_function_code} (0x{received_function_code:02x} hex)')
         print(f'Register-Adresse: {received_register_address} (0x{received_register_address:04x} hex)')
-        print(f'Geschriebener Wert (neue ID): {received_value} (0x{received_value:04x} hex)')
+        print(f'Register-Anzahl: {received_register_count}')
         print(f'CRC: 0x{received_crc:04x}')
 
         # Wait longer for the device to reset and apply new address
-        logging.info(f"Warte 5 Sekunden auf Geräte-Reset...")
-        time.sleep(5)
+        logging.info(f"Warte 10 Sekunden auf Geräte-Reset...")
+        time.sleep(10)
         
         # Try multiple times to verify new address
-        max_attempts = 3
+        max_attempts = 5
         for attempt in range(max_attempts):
             try:
                 logging.info(f"Verifizierungsversuch {attempt + 1} von {max_attempts}...")
@@ -96,12 +106,12 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
                     return
                 
                 logging.info("Keine Antwort erhalten, versuche erneut...")
-                time.sleep(2)  # Wait between attempts
+                time.sleep(3)  # Längere Wartezeit zwischen Versuchen
                 
             except Exception as e:
                 logging.error(f"Fehler beim Verifizierungsversuch {attempt + 1}: {e}")
                 if attempt < max_attempts - 1:
-                    time.sleep(2)
+                    time.sleep(3)
                     continue
                 raise Exception("Konnte neue Adresse nicht verifizieren nach mehreren Versuchen")
 
