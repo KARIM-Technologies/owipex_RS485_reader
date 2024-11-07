@@ -35,10 +35,6 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
     register_address = 0x2000  # Address for the device id register
     crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')
 
-    # Test communication first
-    test_message = struct.pack('>B B H H', old_device_id, 0x03, 0x0001, 1)
-    test_message += struct.pack('<H', crc16(test_message))
-
     ser = serial.Serial(
         port=port,
         baudrate=9600,
@@ -48,45 +44,69 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
         timeout=1
     )
 
-    # Test reading
-    ser.write(test_message)
-    test_response = ser.read(7)
-    if len(test_response) != 7:
-        raise Exception('Keine Antwort vom Gerät bei Kommunikationstest')
+    try:
+        # Test communication first
+        test_message = struct.pack('>B B H H', old_device_id, 0x03, 0x0001, 1)
+        test_message += struct.pack('<H', crc16(test_message))
 
-    # Write new address
-    message = struct.pack('>B B H H', old_device_id, function_code, register_address, new_device_id)
-    message += struct.pack('<H', crc16(message))
+        ser.write(test_message)
+        test_response = ser.read(7)
+        if len(test_response) != 7:
+            raise Exception('Keine Antwort vom Gerät bei Kommunikationstest')
 
-    ser.write(message)
-    response = ser.read(8)  # Response size for Write Single Register is always 8 bytes
+        logging.info("Kommunikationstest erfolgreich")
 
-    if len(response) < 8:
-        raise Exception('Ungültige Antwort: weniger als 8 Bytes')
+        # Write new address
+        message = struct.pack('>B B H H', old_device_id, function_code, register_address, new_device_id)
+        message += struct.pack('<H', crc16(message))
 
-    received_device_id, received_function_code, received_register_address, received_value, received_crc = struct.unpack('>B B H H H', response)
+        ser.write(message)
+        response = ser.read(8)  # Response size for Write Single Register is always 8 bytes
 
-    print(f'Antwort vom Gerät:')
-    print(f'Geräte ID: {received_device_id} (0x{received_device_id:02x} hex)')
-    print(f'Funktionscode: {received_function_code} (0x{received_function_code:02x} hex)')
-    print(f'Register-Adresse: {received_register_address} (0x{received_register_address:04x} hex)')
-    print(f'Geschriebener Wert (neue ID): {received_value} (0x{received_value:04x} hex)')
-    print(f'CRC: 0x{received_crc:04x}')
+        if len(response) < 8:
+            raise Exception('Ungültige Antwort: weniger als 8 Bytes')
 
-    # Wait and verify
-    time.sleep(2)
-    
-    # Test new address
-    test_message = struct.pack('>B B H H', new_device_id, 0x03, 0x0001, 1)
-    test_message += struct.pack('<H', crc16(test_message))
-    
-    ser.write(test_message)
-    verify_response = ser.read(7)
-    
-    if len(verify_response) != 7:
-        raise Exception('Konnte neue Adresse nicht verifizieren')
+        received_device_id, received_function_code, received_register_address, received_value, received_crc = struct.unpack('>B B H H H', response)
 
-    ser.close()
+        print(f'Antwort vom Gerät:')
+        print(f'Geräte ID: {received_device_id} (0x{received_device_id:02x} hex)')
+        print(f'Funktionscode: {received_function_code} (0x{received_function_code:02x} hex)')
+        print(f'Register-Adresse: {received_register_address} (0x{received_register_address:04x} hex)')
+        print(f'Geschriebener Wert (neue ID): {received_value} (0x{received_value:04x} hex)')
+        print(f'CRC: 0x{received_crc:04x}')
+
+        # Wait longer for the device to reset and apply new address
+        logging.info(f"Warte 5 Sekunden auf Geräte-Reset...")
+        time.sleep(5)
+        
+        # Try multiple times to verify new address
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                logging.info(f"Verifizierungsversuch {attempt + 1} von {max_attempts}...")
+                # Test new address
+                test_message = struct.pack('>B B H H', new_device_id, 0x03, 0x0001, 1)
+                test_message += struct.pack('<H', crc16(test_message))
+                
+                ser.write(test_message)
+                verify_response = ser.read(7)
+                
+                if len(verify_response) == 7:
+                    logging.info(f"Neue Adresse {new_device_id} erfolgreich verifiziert!")
+                    return
+                
+                logging.info("Keine Antwort erhalten, versuche erneut...")
+                time.sleep(2)  # Wait between attempts
+                
+            except Exception as e:
+                logging.error(f"Fehler beim Verifizierungsversuch {attempt + 1}: {e}")
+                if attempt < max_attempts - 1:
+                    time.sleep(2)
+                    continue
+                raise Exception("Konnte neue Adresse nicht verifizieren nach mehreren Versuchen")
+
+    finally:
+        ser.close()
 
 if __name__ == "__main__":
     setup_logging()
