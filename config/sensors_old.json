@@ -1,33 +1,33 @@
 {
     "sensors": [
       {
+        "id": "ph_1",
+        "type": "ph",
+        "device_id": 3,
+        "name": "PH Sensor 1",
+        "location": "Tank 1",
+        "transmission": {
+          "formats": ["simple", "json"],
+          "interval": 15
+        },
+        "metadata": {
+          "manufacturer": "Endress+Hauser",
+          "model": "Liquiline M CM42",
+          "serial": "DJ3422N"
+        }
+      },
+      {
         "id": "turbidity_1",
         "type": "turbidity",
         "device_id": 2,
         "name": "Trübungssensor 1",
-        "location": "Kundenbecken",
+        "location": "Einlauf",
         "transmission": {
           "formats": ["simple", "json"],
           "interval": 10
         },
         "metadata": {
-          "manufacturer": "OWIPEX",
-          "model": "TU5300sc",
-          "serial": "18D4422"
-        }
-      },
-      {
-        "id": "turbidity_2",
-        "type": "turbidity",
-        "device_id": 22,
-        "name": "Trübungssensor 2",
-        "location": "Filterbecken",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 10
-        },
-        "metadata": {
-          "manufacturer": "OWIPEX",
+          "manufacturer": "Hach",
           "model": "TU5300sc",
           "serial": "18D4422"
         }
@@ -35,7 +35,7 @@
       {
         "id": "radar_1",
         "type": "radar",
-        "device_id": 1,
+        "device_id": 11,
         "name": "Radar 1",
         "location": "Tank 1",
         "transmission": {
