@@ -18,6 +18,9 @@ class ModbusClient:
     def read_flow_sensor(self, register_address):
         return self.device_manager.read_flow_sensor(self.device_id, register_address)
 
+    def write_registers(self, start_address, values):
+        return self.device_manager.write_registers(self.device_id, start_address, values)
+
 class DeviceManager:
     def __init__(self, port, baudrate, parity, stopbits, bytesize, timeout):
         self.ser = serial.Serial(
@@ -127,3 +130,40 @@ class DeviceManager:
             return value
         except struct.error:
             return self.last_read_values.get((device_id, register_address), None)
+
+    def write_registers(self, device_id, start_address, values):
+        """Write multiple registers using Modbus function code 0x10"""
+        function_code = 0x10
+        register_count = len(values)
+        byte_count = register_count * 2
+        
+        # Erstelle die Nachricht: device_id + function_code + start_address + register_count + byte_count + values
+        message = struct.pack('>B B H H B', device_id, function_code, start_address, register_count, byte_count)
+        
+        # Füge die Werte hinzu
+        for value in values:
+            message += struct.pack('>H', value)
+            
+        # Berechne und füge CRC hinzu
+        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
+        message += struct.pack('<H', crc16)
+
+        # Erwartete Antwortlänge für Funktion 0x10 ist 8 Bytes
+        expected_length = 8
+        response = self._send_and_receive(message, expected_length)
+
+        if len(response) < expected_length:
+            raise Exception("Keine oder unvollständige Antwort vom Gerät")
+
+        # Überprüfe die Antwort
+        received_crc = struct.unpack('<H', response[-2:])[0]
+        calculated_crc = crcmod.predefined.mkPredefinedCrcFun('modbus')(response[:-2])
+        
+        if received_crc != calculated_crc:
+            raise Exception("CRC-Prüfung fehlgeschlagen")
+
+        # Überprüfe die Antwort auf Fehler
+        if response[1] != function_code:
+            raise Exception(f"Unerwarteter Funktionscode in der Antwort: {response[1]}")
+
+        return True
