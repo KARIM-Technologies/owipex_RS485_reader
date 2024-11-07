@@ -1,65 +1,96 @@
 #!/usr/bin/env python3
-import minimalmodbus
-import serial
+import sys
+import argparse
+import logging
+from modbus_manager import DeviceManager
 import time
 
-class RadarSensorAddressChanger:
-    def __init__(self, port='/dev/ttyUSB0', current_address=0x01):
-        """
-        Initialisiert den Radar-Sensor Address Changer
-        
-        Args:
-            port: Serieller Port (default: /dev/ttyUSB0)
-            current_address: Aktuelle Geräteadresse (default: 0x01)
-        """
-        self.instrument = minimalmodbus.Instrument(port, current_address)
-        self.instrument.serial.baudrate = 9600
-        self.instrument.serial.bytesize = 8
-        self.instrument.serial.parity = serial.PARITY_NONE
-        self.instrument.serial.stopbits = 1
-        self.instrument.serial.timeout = 1
-        self.instrument.mode = minimalmodbus.MODE_RTU
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
 
-    def change_address(self, new_address):
-        """
-        Ändert die Geräteadresse des Radar-Sensors
+def change_radar_address(port: str, current_address: int, new_address: int) -> bool:
+    """
+    Ändert die Modbus-Adresse des Radarsensors.
+    
+    Args:
+        port: Der serielle Port (z.B. '/dev/ttyS0')
+        current_address: Aktuelle Geräteadresse (Standard: 0x01)
+        new_address: Neue gewünschte Geräteadresse (1-247)
+    
+    Returns:
+        bool: True wenn erfolgreich, False wenn fehlgeschlagen
+    """
+    try:
+        # Initialisiere ModbusManager mit Standard-Einstellungen
+        dev_manager = DeviceManager(
+            port=port,
+            baudrate=9600,
+            parity='N',
+            stopbits=1,
+            bytesize=8,
+            timeout=1
+        )
+
+        # Verbinde mit dem Gerät unter der aktuellen Adresse
+        device = dev_manager.add_device(device_id=current_address)
+
+        # Register für Geräteadresse ist typischerweise 0x2000
+        # Schreibe neue Adresse
+        device.write_register(start_address=0x2000, values=[new_address])
         
-        Args:
-            new_address: Neue Geräteadresse (1-247)
-        """
-        if not 1 <= new_address <= 247:
-            raise ValueError("Neue Adresse muss zwischen 1 und 247 liegen")
+        logging.info(f"Adressänderung durchgeführt. Warte 3 Sekunden...")
+        time.sleep(3)  # Warte auf Reset des Geräts
         
-        try:
-            # Register für Geräteadresse ist typischerweise 0x2000
-            self.instrument.write_register(0x2000, new_address, 
-                                        functioncode=0x10)
-            print(f"Adresse erfolgreich von {self.instrument.address} "
-                  f"zu {new_address} geändert")
-            time.sleep(1)  # Warte auf Neustart des Geräts
-            
-        except Exception as e:
-            print(f"Fehler beim Ändern der Adresse: {str(e)}")
+        # Versuche mit der neuen Adresse zu kommunizieren
+        dev_manager.remove_device(current_address)
+        new_device = dev_manager.add_device(device_id=new_address)
+        
+        # Teste die Kommunikation
+        test_read = new_device.read_register(start_address=0x0001, register_count=1)
+        logging.info(f"Erfolgreich mit neuer Adresse verbunden. Test-Lesung: {test_read}")
+        
+        return True
+
+    except Exception as e:
+        logging.error(f"Fehler beim Ändern der Geräteadresse: {e}")
+        return False
+    finally:
+        dev_manager.close()
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(
-        description='Radar-Sensor Adresse ändern')
-    parser.add_argument('--port', default='/dev/ttyUSB0',
-                       help='Serieller Port')
+    setup_logging()
+    
+    parser = argparse.ArgumentParser(description='Radar Sensor Adress Changer')
+    parser.add_argument('--port', type=str, default='/dev/ttyS0',
+                      help='Serieller Port (Standard: /dev/ttyS0)')
     parser.add_argument('--current-address', type=int, default=1,
-                       help='Aktuelle Geräteadresse')
+                      help='Aktuelle Geräteadresse (Standard: 1)')
     parser.add_argument('--new-address', type=int, required=True,
-                       help='Neue Geräteadresse (1-247)')
-    
+                      help='Neue Geräteadresse (1-247)')
+
     args = parser.parse_args()
+
+    # Validiere Eingaben
+    if not 1 <= args.new_address <= 247:
+        logging.error("Neue Adresse muss zwischen 1 und 247 liegen!")
+        sys.exit(1)
+
+    # Sicherheitsabfrage
+    confirm = input(f"WARNUNG: Möchten Sie die Geräteadresse wirklich von {args.current_address} "
+                   f"zu {args.new_address} ändern? (j/N): ")
     
-    changer = RadarSensorAddressChanger(
-        port=args.port,
-        current_address=args.current_address
-    )
-    
-    changer.change_address(args.new_address)
+    if confirm.lower() != 'j':
+        logging.info("Adressänderung abgebrochen.")
+        sys.exit(0)
+
+    if change_radar_address(args.port, args.current_address, args.new_address):
+        logging.info("Adressänderung erfolgreich abgeschlossen!")
+    else:
+        logging.error("Adressänderung fehlgeschlagen!")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main() 
