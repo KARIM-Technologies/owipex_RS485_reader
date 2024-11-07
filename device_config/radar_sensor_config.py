@@ -31,10 +31,6 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
         new_device_id: Neue gewünschte Geräteadresse
         port: Serieller Port (Standard: /dev/ttyS0)
     """
-    function_code = 0x10  # Function code for Write Multiple Registers
-    register_address = 0x2000  # Address for the device id register
-    crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')
-
     ser = serial.Serial(
         port=port,
         baudrate=9600,
@@ -45,76 +41,65 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
     )
 
     try:
-        # Test communication first
-        test_message = struct.pack('>B B H H', old_device_id, 0x03, 0x0001, 1)
-        test_message += struct.pack('<H', crc16(test_message))
+        # Test communication first using function code 0x03 to read air height
+        function_code_read = 0x03
+        test_message = struct.pack('>BBHH', old_device_id, function_code_read, 0x0000, 0x0001)
+        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(test_message)
+        test_message += struct.pack('<H', crc16)
 
+        logging.info("Teste Kommunikation...")
         ser.write(test_message)
-        test_response = ser.read(7)
+        test_response = ser.read(7)  # Device ID + Function Code + Length + 2 Data Bytes + 2 CRC Bytes
+        
         if len(test_response) != 7:
             raise Exception('Keine Antwort vom Gerät bei Kommunikationstest')
-
+        
         logging.info("Kommunikationstest erfolgreich")
 
         # Write new address using function code 0x10
-        register_count = 1
-        byte_count = 2  # 2 bytes per register
-        message = struct.pack('>B B H H B', old_device_id, function_code, register_address, register_count, byte_count)
-        message += struct.pack('>H', new_device_id)  # Data to write
-        message += struct.pack('<H', crc16(message))
+        function_code_write = 0x10
+        register_address = 0x2000  # Starting address for device settings
+        register_count = 0x0001    # Number of registers to write
+        byte_count = 0x02         # Number of bytes to write (2 bytes per register)
+        
+        # Build message: ID + FN + ADDR + COUNT + BYTES + VALUE + CRC
+        message = struct.pack('>BBHHBB', old_device_id, function_code_write, 
+                            register_address, register_count, byte_count, new_device_id)
+        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
+        message += struct.pack('<H', crc16)
 
         logging.info(f"Sende Adressänderungsbefehl: {message.hex()}")
         ser.write(message)
-        response = ser.read(8)  # Response size for Write Multiple Registers
-
-        if len(response) < 8:
-            raise Exception('Ungültige Antwort: weniger als 8 Bytes')
+        
+        # Read response
+        response = ser.read(8)  # Device ID + Function Code + Register Address + Register Count + CRC
+        if len(response) != 8:
+            raise Exception('Ungültige Antwort bei Adressänderung')
 
         logging.info(f"Empfangene Antwort: {response.hex()}")
         
-        received_device_id = response[0]
-        received_function_code = response[1]
-        received_register_address = struct.unpack('>H', response[2:4])[0]
-        received_register_count = struct.unpack('>H', response[4:6])[0]
-        received_crc = struct.unpack('<H', response[6:8])[0]
-
-        print(f'Antwort vom Gerät:')
-        print(f'Geräte ID: {received_device_id} (0x{received_device_id:02x} hex)')
-        print(f'Funktionscode: {received_function_code} (0x{received_function_code:02x} hex)')
-        print(f'Register-Adresse: {received_register_address} (0x{received_register_address:04x} hex)')
-        print(f'Register-Anzahl: {received_register_count}')
-        print(f'CRC: 0x{received_crc:04x}')
-
-        # Wait longer for the device to reset and apply new address
-        logging.info(f"Warte 10 Sekunden auf Geräte-Reset...")
-        time.sleep(10)
+        # Wait for device to apply new address
+        logging.info("Warte 5 Sekunden auf Geräte-Reset...")
+        time.sleep(5)
         
-        # Try multiple times to verify new address
-        max_attempts = 5
-        for attempt in range(max_attempts):
-            try:
-                logging.info(f"Verifizierungsversuch {attempt + 1} von {max_attempts}...")
-                # Test new address
-                test_message = struct.pack('>B B H H', new_device_id, 0x03, 0x0001, 1)
-                test_message += struct.pack('<H', crc16(test_message))
-                
-                ser.write(test_message)
-                verify_response = ser.read(7)
-                
-                if len(verify_response) == 7:
-                    logging.info(f"Neue Adresse {new_device_id} erfolgreich verifiziert!")
-                    return
-                
-                logging.info("Keine Antwort erhalten, versuche erneut...")
-                time.sleep(3)  # Längere Wartezeit zwischen Versuchen
-                
-            except Exception as e:
-                logging.error(f"Fehler beim Verifizierungsversuch {attempt + 1}: {e}")
-                if attempt < max_attempts - 1:
-                    time.sleep(3)
-                    continue
-                raise Exception("Konnte neue Adresse nicht verifizieren nach mehreren Versuchen")
+        # Verify new address by reading air height
+        verify_message = struct.pack('>BBHH', new_device_id, function_code_read, 0x0000, 0x0001)
+        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(verify_message)
+        verify_message += struct.pack('<H', crc16)
+        
+        logging.info("Verifiziere neue Adresse...")
+        ser.write(verify_message)
+        verify_response = ser.read(7)
+        
+        if len(verify_response) != 7:
+            raise Exception('Konnte neue Adresse nicht verifizieren')
+        
+        logging.info(f"Neue Adresse {new_device_id} erfolgreich verifiziert")
+        return True
 
+    except Exception as e:
+        logging.error(f"Fehler: {str(e)}")
+        return False
     finally:
         ser.close()
 
@@ -142,8 +127,11 @@ if __name__ == "__main__":
         exit(0)
 
     try:
-        write_device_id(args.current_address, args.new_address, args.port)
-        logging.info(f"Geräteadresse erfolgreich von {args.current_address} zu {args.new_address} geändert")
+        if write_device_id(args.current_address, args.new_address, args.port):
+            logging.info(f"Geräteadresse erfolgreich von {args.current_address} zu {args.new_address} geändert")
+        else:
+            logging.error("Adressänderung fehlgeschlagen")
+            exit(1)
     except Exception as e:
         logging.error(f"Fehler beim Konfigurieren des Radarsensors: {e}")
         exit(1) 
