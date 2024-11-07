@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 import sys
+import os
 import argparse
 import logging
-from modbus_manager import DeviceManager
 import time
+
+# Füge den Hauptverzeichnispfad zum Python-Path hinzu
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
+from modbus_manager import DeviceManager
 
 def setup_logging():
     logging.basicConfig(
