@@ -17,22 +17,6 @@
         }
       },
       {
-        "id": "ph_2", 
-        "type": "ph",
-        "device_id": 5,
-        "name": "PH Sensor 2",
-        "location": "Tank 2",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 30
-        },
-        "metadata": {
-          "manufacturer": "Endress+Hauser",
-          "model": "Liquiline M CM42",
-          "serial": "DJ3423N"
-        }
-      },
-      {
         "id": "turbidity_1",
         "type": "turbidity",
         "device_id": 2,
@@ -46,22 +30,6 @@
           "manufacturer": "Hach",
           "model": "TU5300sc",
           "serial": "18D4422"
-        }
-      },
-      {
-        "id": "turbidity_2",
-        "type": "turbidity", 
-        "device_id": 6,
-        "name": "Trübungssensor 2",
-        "location": "Auslauf",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 10
-        },
-        "metadata": {
-          "manufacturer": "Hach",
-          "model": "TU5300sc",
-          "serial": "18D4423"
         }
       },
       {
