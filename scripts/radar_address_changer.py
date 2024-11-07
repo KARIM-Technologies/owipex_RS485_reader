@@ -82,7 +82,8 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
         
         # Versuche mit der neuen Adresse zu kommunizieren
         logging.info(f"Versuche Verbindung mit neuer Adresse {new_address}...")
-        dev_manager.remove_device(current_address)
+        if current_address in dev_manager.devices:
+            dev_manager.remove_device(current_address)
         new_device = dev_manager.add_device(device_id=new_address)
         
         # Teste die Kommunikation mit der neuen Adresse
@@ -98,12 +99,11 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
         return False
     finally:
         if dev_manager is not None:
-            # Schließe alle offenen Verbindungen im DeviceManager
-            for device_id in dev_manager.devices:
-                try:
-                    dev_manager.devices[device_id].client.close()
-                except:
-                    pass
+            # Schließe die serielle Verbindung
+            try:
+                dev_manager.ser.close()
+            except:
+                pass
 
 def main():
     setup_logging()
@@ -138,4 +138,4 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main() 
+    main()

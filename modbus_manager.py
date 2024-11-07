@@ -40,6 +40,15 @@ class DeviceManager:
         self.devices[device_id] = ModbusClient(self, device_id)
         return self.devices[device_id]
 
+    def remove_device(self, device_id):
+        """Entfernt ein Gerät aus dem DeviceManager"""
+        if device_id in self.devices:
+            del self.devices[device_id]
+            # Entferne auch alle gespeicherten Werte für dieses Gerät
+            self.last_read_values = {k: v for k, v in self.last_read_values.items() if k[0] != device_id}
+            return True
+        return False
+
     def get_device(self, device_id):
         return self.devices.get(device_id)
 
