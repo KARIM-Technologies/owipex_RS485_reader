@@ -51,8 +51,24 @@
       {
         "id": "flow_1",
         "type": "flow",
-        "device_id": 10,
-        "name": "Ultrasonic 1",
+        "device_id": 40,
+        "name": "FT10 FlowSensor",
+        "location": "Tank 1",
+        "transmission": {
+          "formats": ["simple", "json"],
+          "interval": 60
+        },
+        "metadata": {
+          "manufacturer": "VEGA",
+          "model": "VEGAPULS 64",
+          "serial": "43215532"
+        }
+      },
+      {
+        "id": "flow_1",
+        "type": "flow",
+        "device_id": 41,
+        "name": "FT11 FlowSensor",
         "location": "Tank 1",
         "transmission": {
           "formats": ["simple", "json"],
