@@ -59,32 +59,61 @@ class DeviceManager:
             crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
             message += struct.pack('<H', crc16)
 
-            expected_length = 5 + (register_count * 2)
-            response = self._send_and_receive(message, expected_length)
+            # Gib der Antwort mehr Zeit
+            self.ser.reset_input_buffer()
+            self.ser.write(message)
+            time.sleep(0.2)  # Erhöhe die Wartezeit auf 200ms
 
-            if len(response) < expected_length:
-                logger.error(f"Keine oder unvollständige Antwort von Gerät {device_id}, Register {hex(start_address)}")
-                return self.last_read_values.get((device_id, start_address), None)
+            # Lese zuerst den Header (3 Bytes)
+            header = self.ser.read(3)
+            if len(header) != 3:
+                logger.error(f"Keine oder unvollständige Header-Antwort von Gerät {device_id}")
+                return None
 
+            # Extrahiere die Datenlänge aus dem Header
+            byte_count = header[2]
+            
+            # Lese den Rest der Nachricht (Daten + 2 Bytes CRC)
+            remaining = self.ser.read(byte_count + 2)
+            if len(remaining) != (byte_count + 2):
+                logger.error(f"Unvollständige Daten von Gerät {device_id}")
+                return None
+
+            response = header + remaining
+            
+            # CRC Prüfung
             received_crc = struct.unpack('<H', response[-2:])[0]
             calculated_crc = crcmod.predefined.mkPredefinedCrcFun('modbus')(response[:-2])
             
             if received_crc != calculated_crc:
                 logger.error(f"CRC-Fehler bei Gerät {device_id}, Register {hex(start_address)}")
-                return self.last_read_values.get((device_id, start_address), None)
+                return None
 
             data = response[3:-2]
             try:
-                value = struct.unpack(data_format, data)[0]
+                if register_count == 2:
+                    # Für 32-bit Float-Werte
+                    if len(data) != 4:
+                        logger.error(f"Falsche Datenlänge für Float-Wert: {len(data)} Bytes")
+                        return None
+                    swapped_data = data[2:4] + data[0:2]
+                    value = struct.unpack('>f', swapped_data)[0]
+                else:
+                    # Für 16-bit Werte
+                    if len(data) != 2:
+                        logger.error(f"Falsche Datenlänge für Integer-Wert: {len(data)} Bytes")
+                        return None
+                    value = struct.unpack('>H', data)[0]
+
                 self.last_read_values[(device_id, start_address)] = value
                 logger.debug(f"Erfolgreich gelesen von Gerät {device_id}, Register {hex(start_address)}: {value}")
                 return value
             except struct.error as e:
                 logger.error(f"Fehler beim Entpacken der Daten von Gerät {device_id}, Register {hex(start_address)}: {e}")
-                return self.last_read_values.get((device_id, start_address), None)
+                return None
         except Exception as e:
             logger.error(f"Allgemeiner Fehler beim Lesen von Gerät {device_id}, Register {hex(start_address)}: {e}")
-            return self.last_read_values.get((device_id, start_address), None)
+            return None
 
     def read_radar_sensor(self, device_id, register_address):
         """Special method for reading radar sensor data with unsigned short format"""

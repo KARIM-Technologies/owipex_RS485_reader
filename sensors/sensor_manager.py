@@ -210,10 +210,26 @@ class SensorManager:
         self.logger.info("Starte SensorManager...")
         self.running = True
         while self.running:
-            sensor_data = self.read_all_sensors()
-            if sensor_data.get("simple") or sensor_data.get("json"):
-                self.send_telemetry(sensor_data)
-            time.sleep(1)  # Check every second
+            current_time = time.time()
+            
+            # Prüfe jeden Sensor
+            for sensor_id, sensor_info in self.sensors.items():
+                if self.should_read_sensor(sensor_info):
+                    self.logger.debug(f"Lese Sensor {sensor_id}...")
+                    try:
+                        sensor_data = sensor_info['sensor'].read_data()
+                        if sensor_data:
+                            self.logger.info(f"Sensor {sensor_id} erfolgreich gelesen: {sensor_data}")
+                            formatted_data = self.format_sensor_data(sensor_id, sensor_info, sensor_data)
+                            self.send_telemetry(formatted_data)
+                            sensor_info['last_read'] = current_time
+                        else:
+                            self.logger.error(f"Keine Daten von Sensor {sensor_id} erhalten")
+                    except Exception as e:
+                        self.logger.error(f"Fehler beim Lesen von Sensor {sensor_id}: {e}")
+            
+            # Warte eine Sekunde vor der nächsten Prüfung
+            time.sleep(1)
             
     def stop(self):
         """Stop the sensor manager"""
