@@ -30,6 +30,7 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
     Returns:
         bool: True wenn erfolgreich, False wenn fehlgeschlagen
     """
+    dev_manager = None
     try:
         # Initialisiere ModbusManager mit Standard-Einstellungen
         dev_manager = DeviceManager(
@@ -45,8 +46,8 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
         device = dev_manager.add_device(device_id=current_address)
 
         # Register für Geräteadresse ist typischerweise 0x2000
-        # Schreibe neue Adresse
-        device.write_register(start_address=0x2000, values=[new_address])
+        # Schreibe neue Adresse - write_registers statt write_register
+        device.write_registers(start_address=0x2000, values=[new_address])
         
         logging.info(f"Adressänderung durchgeführt. Warte 3 Sekunden...")
         time.sleep(3)  # Warte auf Reset des Geräts
@@ -55,8 +56,8 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
         dev_manager.remove_device(current_address)
         new_device = dev_manager.add_device(device_id=new_address)
         
-        # Teste die Kommunikation
-        test_read = new_device.read_register(start_address=0x0001, register_count=1)
+        # Teste die Kommunikation - read_registers statt read_register
+        test_read = new_device.read_registers(start_address=0x0001, register_count=1)
         logging.info(f"Erfolgreich mit neuer Adresse verbunden. Test-Lesung: {test_read}")
         
         return True
@@ -65,7 +66,13 @@ def change_radar_address(port: str, current_address: int, new_address: int) -> b
         logging.error(f"Fehler beim Ändern der Geräteadresse: {e}")
         return False
     finally:
-        dev_manager.close()
+        if dev_manager is not None:
+            # Schließe alle offenen Verbindungen im DeviceManager
+            for device_id in dev_manager.devices:
+                try:
+                    dev_manager.devices[device_id].client.close()
+                except:
+                    pass
 
 def main():
     setup_logging()
