@@ -75,13 +75,7 @@ class DeviceManager:
 
             data = response[3:-2]
             try:
-                # Für Float-Werte (32-bit) die Bytes tauschen
-                if data_format == '>f' and len(data) == 4:
-                    swapped_data = data[2:4] + data[0:2]
-                    value = struct.unpack(data_format, swapped_data)[0]
-                else:
-                    value = struct.unpack(data_format, data)[0]
-                    
+                value = struct.unpack(data_format, data)[0]
                 self.last_read_values[(device_id, start_address)] = value
                 logger.debug(f"Erfolgreich gelesen von Gerät {device_id}, Register {hex(start_address)}: {value}")
                 return value
