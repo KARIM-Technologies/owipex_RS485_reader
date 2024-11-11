@@ -66,7 +66,7 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
         byte_count = 0x02
         
         # Validate new address range (1-32 according to documentation)
-        if not 1 <= new_device_id <= 32:
+        if not 1 <= new_device_id <= 90:
             raise ValueError("Neue Adresse muss zwischen 1 und 32 liegen")
         
         # Prepare the value to write (U16 format)
