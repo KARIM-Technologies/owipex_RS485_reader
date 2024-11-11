@@ -61,22 +61,39 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
 
         # Write new address using function code 0x10
         function_code = 0x10
-        register_address = 0x2006
+        register_address = 0x2006  # Offset 6 for bus address
         register_count = 0x0001
         byte_count = 0x02
         
-        message = struct.pack('>BBHHBB', old_device_id, function_code, 
-                            register_address, register_count, byte_count, new_device_id)
+        # Validate new address range (1-32 according to documentation)
+        if not 1 <= new_device_id <= 32:
+            raise ValueError("Neue Adresse muss zwischen 1 und 32 liegen")
+        
+        # Prepare the value to write (U16 format)
+        value_to_write = new_device_id & 0xFFFF  # Ensure 16-bit unsigned integer
+        
+        message = struct.pack('>BBHHBH', 
+            old_device_id,      # Device address (1 byte)
+            function_code,      # Function code 0x10 (1 byte)
+            register_address,   # Register address 0x2006 (2 bytes)
+            register_count,     # Number of registers (2 bytes)
+            byte_count,        # Byte count (1 byte)
+            value_to_write     # Value to write (2 bytes)
+        )
+        
         crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
         message += struct.pack('<H', crc16)
 
-        logging.info(f"Ändere Geräteadresse zu {new_device_id}...")
+        logging.info(f"Sende Adressänderungsbefehl: {message.hex()}")
         ser.write(message)
-        response = ser.read(8)  # Response for Write Multiple Registers
-
+        
+        # Read response
+        response = ser.read(8)  # Device ID + Function Code + Register Address + Register Count + CRC
         if len(response) != 8:
             raise Exception("Keine gültige Antwort bei Adressänderung")
 
+        logging.info(f"Empfangene Antwort: {response.hex()}")
+        
         # Wait for device to apply new address
         logging.info("Warte 5 Sekunden auf Geräte-Reset...")
         time.sleep(5)
@@ -100,20 +117,20 @@ def main():
     # Get current address
     while True:
         try:
-            current_address = int(input("Bitte geben Sie die aktuelle Geräteadresse ein (1-247): "))
-            if 1 <= current_address <= 247:
+            current_address = int(input("Bitte geben Sie die aktuelle Geräteadresse ein (1-32): "))
+            if 1 <= current_address <= 32:
                 break
-            print("Ungültige Eingabe: Adresse muss zwischen 1 und 247 liegen")
+            print("Ungültige Eingabe: Adresse muss zwischen 1 und 32 liegen")
         except ValueError:
             print("Ungültige Eingabe: Bitte geben Sie eine Zahl ein")
 
     # Get new address
     while True:
         try:
-            new_address = int(input("Bitte geben Sie die neue Geräteadresse ein (1-247): "))
-            if 1 <= new_address <= 247:
+            new_address = int(input("Bitte geben Sie die neue Geräteadresse ein (1-32): "))
+            if 1 <= new_address <= 32:
                 break
-            print("Ungültige Eingabe: Adresse muss zwischen 1 und 247 liegen")
+            print("Ungültige Eingabe: Adresse muss zwischen 1 und 32 liegen")
         except ValueError:
             print("Ungültige Eingabe: Bitte geben Sie eine Zahl ein")
 
