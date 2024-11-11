@@ -66,7 +66,7 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
         byte_count = 0x02
         
         # Validate new address range (1-32 according to documentation)
-        if not 1 <= new_device_id <= 90:
+        if not 1 <= new_device_id <= 32:
             raise ValueError("Neue Adresse muss zwischen 1 und 32 liegen")
         
         # Prepare the value to write (U16 format)
@@ -118,7 +118,7 @@ def main():
     while True:
         try:
             current_address = int(input("Bitte geben Sie die aktuelle Geräteadresse ein (1-32): "))
-            if 1 <= current_address <= 80:
+            if 1 <= current_address <= 32:
                 break
             print("Ungültige Eingabe: Adresse muss zwischen 1 und 32 liegen")
         except ValueError:
@@ -128,7 +128,7 @@ def main():
     while True:
         try:
             new_address = int(input("Bitte geben Sie die neue Geräteadresse ein (1-32): "))
-            if 1 <= new_address <= 80:
+            if 1 <= new_address <= 32:
                 break
             print("Ungültige Eingabe: Adresse muss zwischen 1 und 32 liegen")
         except ValueError:
