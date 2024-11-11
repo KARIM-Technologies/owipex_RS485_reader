@@ -58,7 +58,7 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
 
         # Write new address using function code 0x10
         function_code_write = 0x10
-        register_address = 0x2000  # Starting address for device settings
+        register_address = 0x2006  # Starting address for device settings
         register_count = 0x0001    # Number of registers to write
         byte_count = 0x02         # Number of bytes to write (2 bytes per register)
         
