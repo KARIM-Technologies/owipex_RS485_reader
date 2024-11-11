@@ -5,8 +5,8 @@
 #
 # License: All Rights Reserved
 #
-# Module: Radar Sensor ID Configuration V0.1
-# Description: Script to set the Radar Sensor device ID
+# Module: Radar Sensor ID Configuration V0.2
+# Description: Interactive script to set the Radar Sensor device ID
 # -----------------------------------------------------------------------------
 
 import serial
@@ -14,7 +14,6 @@ import struct
 import crcmod.predefined
 import logging
 import time
-import argparse
 
 def setup_logging():
     logging.basicConfig(
@@ -22,15 +21,29 @@ def setup_logging():
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
-def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
-    """
-    Ändert die Geräte-ID des Radarsensors
+def test_communication(ser, device_id):
+    """Test communication with the sensor"""
+    function_code = 0x03
+    register_address = 0x0000  # Air height register
+    register_count = 0x0001    # Read 1 register
     
-    Args:
-        old_device_id: Aktuelle Geräteadresse
-        new_device_id: Neue gewünschte Geräteadresse
-        port: Serieller Port (Standard: /dev/ttyS0)
-    """
+    message = struct.pack('>BBHH', device_id, function_code, register_address, register_count)
+    crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
+    message += struct.pack('<H', crc16)
+    
+    ser.write(message)
+    response = ser.read(7)  # Device ID + Function Code + Byte Count + 2 Data Bytes + 2 CRC Bytes
+    
+    if len(response) == 7:
+        value = struct.unpack('>H', response[3:5])[0]
+        logging.info(f"Kommunikation mit Gerät {device_id} erfolgreich (Messwert: {value}mm)")
+        return True
+    else:
+        logging.error(f"Keine Antwort von Gerät {device_id}")
+        return False
+
+def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
+    """Change the device ID of the Radar sensor"""
     ser = serial.Serial(
         port=port,
         baudrate=9600,
@@ -41,97 +54,87 @@ def write_device_id(old_device_id, new_device_id, port='/dev/ttyS0'):
     )
 
     try:
-        # Test communication first using function code 0x03 to read air height
-        function_code_read = 0x03
-        test_message = struct.pack('>BBHH', old_device_id, function_code_read, 0x0000, 0x0001)
-        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(test_message)
-        test_message += struct.pack('<H', crc16)
-
-        logging.info("Teste Kommunikation...")
-        ser.write(test_message)
-        test_response = ser.read(7)  # Device ID + Function Code + Length + 2 Data Bytes + 2 CRC Bytes
-        
-        if len(test_response) != 7:
-            raise Exception('Keine Antwort vom Gerät bei Kommunikationstest')
-        
-        logging.info("Kommunikationstest erfolgreich")
+        # Test communication first
+        logging.info(f"Teste Kommunikation mit aktueller Adresse {old_device_id}...")
+        if not test_communication(ser, old_device_id):
+            raise Exception("Kommunikationstest fehlgeschlagen")
 
         # Write new address using function code 0x10
-        function_code_write = 0x10
-        register_address = 0x2006  # Starting address for device settings
-        register_count = 0x0001    # Number of registers to write
-        byte_count = 0x02         # Number of bytes to write (2 bytes per register)
+        function_code = 0x10
+        register_address = 0x2006
+        register_count = 0x0001
+        byte_count = 0x02
         
-        # Build message: ID + FN + ADDR + COUNT + BYTES + VALUE + CRC
-        message = struct.pack('>BBHHBB', old_device_id, function_code_write, 
+        message = struct.pack('>BBHHBB', old_device_id, function_code, 
                             register_address, register_count, byte_count, new_device_id)
         crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
         message += struct.pack('<H', crc16)
 
-        logging.info(f"Sende Adressänderungsbefehl: {message.hex()}")
+        logging.info(f"Ändere Geräteadresse zu {new_device_id}...")
         ser.write(message)
-        
-        # Read response
-        response = ser.read(8)  # Device ID + Function Code + Register Address + Register Count + CRC
-        if len(response) != 8:
-            raise Exception('Ungültige Antwort bei Adressänderung')
+        response = ser.read(8)  # Response for Write Multiple Registers
 
-        logging.info(f"Empfangene Antwort: {response.hex()}")
-        
+        if len(response) != 8:
+            raise Exception("Keine gültige Antwort bei Adressänderung")
+
         # Wait for device to apply new address
         logging.info("Warte 5 Sekunden auf Geräte-Reset...")
         time.sleep(5)
-        
-        # Verify new address by reading air height
-        verify_message = struct.pack('>BBHH', new_device_id, function_code_read, 0x0000, 0x0001)
-        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(verify_message)
-        verify_message += struct.pack('<H', crc16)
-        
-        logging.info("Verifiziere neue Adresse...")
-        ser.write(verify_message)
-        verify_response = ser.read(7)
-        
-        if len(verify_response) != 7:
-            raise Exception('Konnte neue Adresse nicht verifizieren')
-        
-        logging.info(f"Neue Adresse {new_device_id} erfolgreich verifiziert")
-        return True
 
-    except Exception as e:
-        logging.error(f"Fehler: {str(e)}")
-        return False
+        # Verify new address
+        logging.info("Verifiziere neue Adresse...")
+        if test_communication(ser, new_device_id):
+            logging.info("Neue Adresse erfolgreich verifiziert")
+            return True
+        else:
+            raise Exception("Konnte neue Adresse nicht verifizieren")
+
     finally:
         ser.close()
 
-if __name__ == "__main__":
+def main():
     setup_logging()
-    parser = argparse.ArgumentParser(description='Radar Sensor Address Configuration')
-    parser.add_argument('--port', type=str, default='/dev/ttyS0',
-                      help='Serieller Port (Standard: /dev/ttyS0)')
-    parser.add_argument('--current-address', type=int, default=1,
-                      help='Aktuelle Geräteadresse (Standard: 1)')
-    parser.add_argument('--new-address', type=int, required=True,
-                      help='Neue Geräteadresse (1-247)')
+    
+    print("\n=== Radar-Sensor Adresskonfiguration ===\n")
+    
+    # Get current address
+    while True:
+        try:
+            current_address = int(input("Bitte geben Sie die aktuelle Geräteadresse ein (1-247): "))
+            if 1 <= current_address <= 247:
+                break
+            print("Ungültige Eingabe: Adresse muss zwischen 1 und 247 liegen")
+        except ValueError:
+            print("Ungültige Eingabe: Bitte geben Sie eine Zahl ein")
 
-    args = parser.parse_args()
+    # Get new address
+    while True:
+        try:
+            new_address = int(input("Bitte geben Sie die neue Geräteadresse ein (1-247): "))
+            if 1 <= new_address <= 247:
+                break
+            print("Ungültige Eingabe: Adresse muss zwischen 1 und 247 liegen")
+        except ValueError:
+            print("Ungültige Eingabe: Bitte geben Sie eine Zahl ein")
 
-    if not 1 <= args.new_address <= 247:
-        logging.error("Neue Adresse muss zwischen 1 und 247 liegen!")
-        exit(1)
+    # Get port (optional)
+    port = input("Bitte geben Sie den seriellen Port ein (Enter für /dev/ttyS0): ").strip()
+    if not port:
+        port = '/dev/ttyS0'
 
-    confirm = input(f"WARNUNG: Möchten Sie die Geräteadresse wirklich von {args.current_address} "
-                   f"zu {args.new_address} ändern? (j/N): ")
+    # Confirmation
+    confirm = input(f"\nWARNUNG: Möchten Sie die Geräteadresse wirklich von {current_address} "
+                   f"zu {new_address} ändern? (j/N): ")
     
     if confirm.lower() != 'j':
         logging.info("Adressänderung abgebrochen.")
-        exit(0)
+        return
 
     try:
-        if write_device_id(args.current_address, args.new_address, args.port):
-            logging.info(f"Geräteadresse erfolgreich von {args.current_address} zu {args.new_address} geändert")
-        else:
-            logging.error("Adressänderung fehlgeschlagen")
-            exit(1)
+        write_device_id(current_address, new_address, port)
+        logging.info(f"Geräteadresse erfolgreich von {current_address} zu {new_address} geändert")
     except Exception as e:
-        logging.error(f"Fehler beim Konfigurieren des Radarsensors: {e}")
-        exit(1)
+        logging.error(f"Fehler beim Konfigurieren des Radar-Sensors: {e}")
+
+if __name__ == "__main__":
+    main()
