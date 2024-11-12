@@ -57,11 +57,43 @@
       }
     },
     {
+      "id": "radar_2",
+      "type": "radar",
+      "device_id": 11,
+      "name": "Radar 2",
+      "location": "Tank 2",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 65
+      },
+      "metadata": {
+        "manufacturer": "VEGA",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    },
+    {
       "id": "flow_1",
       "type": "flow",
       "device_id": 40,
       "name": "FT10 FlowSensor",
       "location": "Tank 1",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 68
+      },
+      "metadata": {
+        "manufacturer": "VEGA",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    },
+    {
+      "id": "flow_2",
+      "type": "flow",
+      "device_id": 41,
+      "name": "FT10 FlowSensor",
+      "location": "Tank 2",
       "transmission": {
         "formats": ["simple", "json"],
         "interval": 68
