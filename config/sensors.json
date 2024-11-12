@@ -32,7 +32,7 @@
       "location": "Filterbecken",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 21
+        "interval": 20
       },
       "metadata": {
         "manufacturer": "OWIPEX",
@@ -48,7 +48,7 @@
       "location": "Tank 1",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 23
+        "interval": 20
       },
       "metadata": {
         "manufacturer": "VEGA",
@@ -64,7 +64,7 @@
       "location": "Tank 2",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 24
+        "interval": 20
       },
       "metadata": {
         "manufacturer": "VEGA",
@@ -80,7 +80,7 @@
       "location": "Tank 1",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 25
+        "interval": 20
       },
       "metadata": {
         "manufacturer": "VEGA",
@@ -96,7 +96,7 @@
       "location": "Tank 2",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 27
+        "interval": 20
       },
       "metadata": {
         "manufacturer": "VEGA",

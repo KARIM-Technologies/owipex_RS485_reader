@@ -9,6 +9,8 @@ from .ph_sensor import PHSensor
 from .turbidity_sensor import TurbiditySensor
 from .flow_sensor import FlowSensor
 from .radar_sensor import RadarSensor
+from queue import Queue
+from threading import Lock
 
 class SensorManager:
     def __init__(self, config_path='config/sensors.json'):
@@ -39,6 +41,14 @@ class SensorManager:
             bytesize=rs485_settings.get('bytesize', 8),
             timeout=rs485_settings.get('timeout', 1)
         )
+        
+        # RS485 Bus Management
+        self.bus_lock = Lock()
+        self.last_communication_time = 0
+        self.DEBOUNCE_TIME = 0.5  # 500ms Mindestabstand zwischen Kommunikationen
+        
+        # Sensor Reading Queue
+        self.read_queue = Queue()
         
         # Load sensor configuration
         self.sensors = self.load_sensors(self.config.get('sensors', []))
@@ -139,45 +149,65 @@ class SensorManager:
         
         return (current_time - last_read) >= interval
 
-    def read_all_sensors(self):
-        """Read data from all sensors"""
-        simple_data = {}
-        json_data = {}
-        current_time = time.time()
-        
-        for sensor_id, sensor_info in self.sensors.items():
-            if not self.should_read_sensor(sensor_info):
-                continue
-
-            sensor = sensor_info['sensor']
-            self.logger.debug(f"Lese Sensor {sensor_id}...")
+    def wait_for_bus(self):
+        """Wartet bis der RS485-Bus verfügbar ist"""
+        with self.bus_lock:
+            current_time = time.time()
+            time_since_last = current_time - self.last_communication_time
             
-            try:
-                sensor_data = sensor.read_data()
+            if time_since_last < self.DEBOUNCE_TIME:
+                wait_time = self.DEBOUNCE_TIME - time_since_last
+                time.sleep(wait_time)
+            
+            self.last_communication_time = time.time()
+
+    def read_sensor_data(self, sensor_id, sensor_info):
+        """Liest Daten von einem Sensor mit Bus-Management"""
+        try:
+            self.wait_for_bus()  # Warte auf Bus-Verfügbarkeit
+            
+            sensor = sensor_info['sensor']
+            sensor_data = sensor.read_data()
+            
+            if sensor_data:
+                self.logger.debug(f"Sensor {sensor_id} erfolgreich gelesen: {sensor_data}")
+                return sensor_data
+            else:
+                self.logger.error(f"Keine Daten von Sensor {sensor_id} erhalten")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Fehler beim Lesen von Sensor {sensor_id}: {e}")
+            return None
+
+    def run(self):
+        """Main run loop"""
+        self.logger.info("Starte SensorManager...")
+        self.running = True
+        
+        while self.running:
+            current_time = time.time()
+            
+            # Sammle alle Sensoren die gelesen werden müssen
+            sensors_to_read = [
+                (sensor_id, sensor_info)
+                for sensor_id, sensor_info in self.sensors.items()
+                if self.should_read_sensor(sensor_info)
+            ]
+            
+            # Verarbeite jeden Sensor
+            for sensor_id, sensor_info in sensors_to_read:
+                sensor_data = self.read_sensor_data(sensor_id, sensor_info)
                 
                 if sensor_data:
-                    self.logger.info(f"Sensor {sensor_id} erfolgreich gelesen: {sensor_data}")
                     # Format data according to sensor configuration
                     formatted_data = self.format_sensor_data(sensor_id, sensor_info, sensor_data)
-                    
-                    # Update simple and JSON data collections
-                    if 'simple' in formatted_data:
-                        simple_data.update(formatted_data['simple'])
-                    if 'json' in formatted_data:
-                        json_data.update(formatted_data['json'])
-                    
-                    # Update last read time
+                    self.send_telemetry(formatted_data)
                     sensor_info['last_read'] = current_time
-                else:
-                    self.logger.error(f"Keine Daten von Sensor {sensor_id} erhalten")
-            except Exception as e:
-                self.logger.error(f"Fehler beim Lesen von Sensor {sensor_id}: {e}")
-        
-        return {
-            "simple": simple_data,
-            "json": json_data
-        }
-        
+            
+            # Kurze Pause um CPU-Last zu reduzieren
+            time.sleep(0.1)
+
     def send_telemetry(self, data):
         """Send telemetry data to ThingsBoard"""
         if not self.client or not data:
@@ -201,32 +231,6 @@ class SensorManager:
         except Exception as e:
             self.logger.error(f"Fehler beim Senden der Telemetrie: {e}")
                 
-    def run(self):
-        """Main run loop"""
-        self.logger.info("Starte SensorManager...")
-        self.running = True
-        while self.running:
-            current_time = time.time()
-            
-            # Prüfe jeden Sensor
-            for sensor_id, sensor_info in self.sensors.items():
-                if self.should_read_sensor(sensor_info):
-                    self.logger.debug(f"Lese Sensor {sensor_id}...")
-                    try:
-                        sensor_data = sensor_info['sensor'].read_data()
-                        if sensor_data:
-                            self.logger.info(f"Sensor {sensor_id} erfolgreich gelesen: {sensor_data}")
-                            formatted_data = self.format_sensor_data(sensor_id, sensor_info, sensor_data)
-                            self.send_telemetry(formatted_data)
-                            sensor_info['last_read'] = current_time
-                        else:
-                            self.logger.error(f"Keine Daten von Sensor {sensor_id} erhalten")
-                    except Exception as e:
-                        self.logger.error(f"Fehler beim Lesen von Sensor {sensor_id}: {e}")
-            
-            # Warte eine Sekunde vor der nächsten Prüfung
-            time.sleep(1)
-            
     def stop(self):
         """Stop the sensor manager"""
         self.logger.info("Stoppe SensorManager...")
