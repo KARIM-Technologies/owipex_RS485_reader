@@ -15,7 +15,7 @@ class SensorManager:
         # Load environment variables
         load_dotenv(dotenv_path='/etc/owipex/.envRS485')
         
-        # Initialize logging with more detailed format
+        # Initialize logging
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s'
@@ -24,70 +24,66 @@ class SensorManager:
         
         self.logger.info("Initialisiere SensorManager...")
         
-        # Initialize Modbus connection
+        # Load configuration
+        with open(config_path, 'r') as f:
+            self.config = json.load(f)
+        
+        # Initialize Modbus connection with settings from config
+        rs485_settings = self.config.get('rs485_settings', {})
         self.logger.info("Stelle Modbus-Verbindung her...")
         self.dev_manager = DeviceManager(
-            port='/dev/ttyS0',
-            baudrate=9600,
-            parity='N',
-            stopbits=1,
-            bytesize=8,
-            timeout=1
+            port=rs485_settings.get('port', '/dev/ttyS0'),
+            baudrate=rs485_settings.get('baudrate', 9600),
+            parity=rs485_settings.get('parity', 'N'),
+            stopbits=rs485_settings.get('stopbits', 1),
+            bytesize=rs485_settings.get('bytesize', 8),
+            timeout=rs485_settings.get('timeout', 1)
         )
         
         # Load sensor configuration
-        self.sensors = self.load_sensors(config_path)
+        self.sensors = self.load_sensors(self.config.get('sensors', []))
         
         # Initialize ThingsBoard connection
         self.client = None
         self.running = False
-        self.last_read_times = {}  # Separate last read time for each sensor
+        self.last_read_times = {}
         self.READ_INTERVAL = int(os.environ.get('RS485_READ_INTERVAL', 15))
         self.logger.info(f"Read Interval: {self.READ_INTERVAL} Sekunden")
 
-    def load_sensors(self, config_path):
-        """Load sensor configuration from JSON file"""
-        try:
-            self.logger.info(f"Lade Sensor-Konfiguration aus {config_path}")
-            with open(config_path, 'r') as f:
-                config = json.load(f)
+    def load_sensors(self, sensor_configs):
+        """Load sensor configuration from config"""
+        sensors = {}
+        sensor_classes = {
+            'ph': PHSensor,
+            'turbidity': TurbiditySensor,
+            'flow': FlowSensor,
+            'radar': RadarSensor
+        }
+        
+        for sensor_config in sensor_configs:
+            sensor_type = sensor_config['type']
+            sensor_id = sensor_config['id']
+            device_id = sensor_config['device_id']
             
-            sensors = {}
-            sensor_classes = {
-                'ph': PHSensor,
-                'turbidity': TurbiditySensor,
-                'flow': FlowSensor,
-                'radar': RadarSensor
-            }
+            self.logger.info(f"Konfiguriere Sensor: {sensor_id} (Typ: {sensor_type}, Device ID: {device_id})")
             
-            for sensor_config in config['sensors']:
-                sensor_type = sensor_config['type']
-                sensor_id = sensor_config['id']
-                device_id = sensor_config['device_id']
-                
-                self.logger.info(f"Konfiguriere Sensor: {sensor_id} (Typ: {sensor_type}, Device ID: {device_id})")
-                
-                if sensor_type in sensor_classes:
-                    sensor_class = sensor_classes[sensor_type]
-                    sensor = sensor_class(
-                        device_id=device_id,
-                        device_manager=self.dev_manager
-                    )
-                    sensors[sensor_id] = {
-                        'sensor': sensor,
-                        'config': sensor_config,
-                        'last_read': 0
-                    }
-                    self.logger.info(f"Sensor {sensor_id} erfolgreich initialisiert")
-                else:
-                    self.logger.warning(f"Unbekannter Sensor-Typ: {sensor_type}")
-            
-            self.logger.info(f"Insgesamt {len(sensors)} Sensoren geladen")
-            return sensors
-            
-        except Exception as e:
-            self.logger.error(f"Fehler beim Laden der Sensor-Konfiguration: {e}")
-            raise
+            if sensor_type in sensor_classes:
+                sensor_class = sensor_classes[sensor_type]
+                sensor = sensor_class(
+                    device_id=device_id,
+                    device_manager=self.dev_manager
+                )
+                sensors[sensor_id] = {
+                    'sensor': sensor,
+                    'config': sensor_config,
+                    'last_read': 0
+                }
+                self.logger.info(f"Sensor {sensor_id} erfolgreich initialisiert")
+            else:
+                self.logger.warning(f"Unbekannter Sensor-Typ: {sensor_type}")
+        
+        self.logger.info(f"Insgesamt {len(sensors)} Sensoren geladen")
+        return sensors
 
     def connect_to_server(self):
         """Connect to ThingsBoard server"""

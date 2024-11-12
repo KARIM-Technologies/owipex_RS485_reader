@@ -1,84 +1,76 @@
 {
-    "sensors": [
-      {
-        "id": "turbidity_1",
-        "type": "turbidity",
-        "device_id": 2,
-        "name": "Trübungssensor 1",
-        "location": "Kundenbecken",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 20
-        },
-        "metadata": {
-          "manufacturer": "OWIPEX",
-          "model": "TU5300sc",
-          "serial": "18D4422"
-        }
+  "rs485_settings": {
+    "port": "/dev/ttyS0",
+    "baudrate": 9600,
+    "parity": "N",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 1
+  },
+  "sensors": [
+    {
+      "id": "turbidity_1",
+      "type": "turbidity",
+      "device_id": 2,
+      "name": "Trübungssensor 1",
+      "location": "Kundenbecken",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 20
       },
-      {
-        "id": "turbidity_2",
-        "type": "turbidity",
-        "device_id": 22,
-        "name": "Trübungssensor 2",
-        "location": "Filterbecken",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 30
-        },
-        "metadata": {
-          "manufacturer": "OWIPEX",
-          "model": "TU5300sc",
-          "serial": "18D4422"
-        }
-      },
-      {
-        "id": "radar_1",
-        "type": "radar",
-        "device_id": 1,
-        "name": "Radar 1",
-        "location": "Tank 1",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 65
-        },
-        "metadata": {
-          "manufacturer": "VEGA",
-          "model": "VEGAPULS 64",
-          "serial": "43215532"
-        }
-      },
-      {
-        "id": "flow_1",
-        "type": "flow",
-        "device_id": 40,
-        "name": "FT10 FlowSensor",
-        "location": "Tank 1",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 68
-        },
-        "metadata": {
-          "manufacturer": "VEGA",
-          "model": "VEGAPULS 64",
-          "serial": "43215532"
-        }
-      },
-      {
-        "id": "flow_2",
-        "type": "flow",
-        "device_id": 41,
-        "name": "FT11 FlowSensor",
-        "location": "Tank 1",
-        "transmission": {
-          "formats": ["simple", "json"],
-          "interval": 64
-        },
-        "metadata": {
-          "manufacturer": "VEGA",
-          "model": "VEGAPULS 64",
-          "serial": "43215532"
-        }
+      "metadata": {
+        "manufacturer": "OWIPEX",
+        "model": "TU5300sc",
+        "serial": "18D4422"
       }
-    ]
-  }
+    },
+    {
+      "id": "turbidity_2",
+      "type": "turbidity",
+      "device_id": 22,
+      "name": "Trübungssensor 2",
+      "location": "Filterbecken",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 30
+      },
+      "metadata": {
+        "manufacturer": "OWIPEX",
+        "model": "TU5300sc",
+        "serial": "18D4422"
+      }
+    },
+    {
+      "id": "radar_1",
+      "type": "radar",
+      "device_id": 1,
+      "name": "Radar 1",
+      "location": "Tank 1",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 65
+      },
+      "metadata": {
+        "manufacturer": "VEGA",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    },
+    {
+      "id": "flow_1",
+      "type": "flow",
+      "device_id": 40,
+      "name": "FT10 FlowSensor",
+      "location": "Tank 1",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 68
+      },
+      "metadata": {
+        "manufacturer": "VEGA",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    }
+  ]
+}
