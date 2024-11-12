@@ -63,7 +63,111 @@ class RS485PortTester:
             print(f"Fehler beim Lesen des Radar-Sensors: {e}")
             return None
 
-    # ... (andere Sensor-Test-Methoden bleiben gleich, aber mit zusätzlichen Print-Statements)
+    def test_ph_sensor(self, device_id: int) -> Optional[Dict[str, Any]]:
+        """Test PH-Sensor und lese Messwerte"""
+        try:
+            print(f"Sende Anfrage an PH-Sensor (ID: {device_id})...")
+            
+            # Lese PH-Wert
+            message = struct.pack('>BBHH', device_id, 0x03, 0x0001, 0x0002)
+            message += struct.pack('<H', self.crc16(message))
+            
+            print(f"Gesendete PH-Anfrage: {message.hex()}")
+            self.ser.write(message)
+            
+            response = self.ser.read(9)
+            print(f"Empfangene PH-Antwort: {response.hex() if response else 'Keine Antwort'}")
+            
+            if len(response) == 9:
+                # Lese Temperatur
+                temp_message = struct.pack('>BBHH', device_id, 0x03, 0x0003, 0x0002)
+                temp_message += struct.pack('<H', self.crc16(temp_message))
+                
+                print(f"Gesendete Temperatur-Anfrage: {temp_message.hex()}")
+                self.ser.write(temp_message)
+                
+                temp_response = self.ser.read(9)
+                print(f"Empfangene Temperatur-Antwort: {temp_response.hex() if temp_response else 'Keine Antwort'}")
+                
+                if len(temp_response) == 9:
+                    ph_bytes = response[3:7]
+                    temp_bytes = temp_response[3:7]
+                    ph_value = struct.unpack('>f', ph_bytes)[0]
+                    temp_value = struct.unpack('>f', temp_bytes)[0]
+                    return {
+                        "ph": ph_value,
+                        "temperature": temp_value
+                    }
+            return None
+        except Exception as e:
+            print(f"Fehler beim Lesen des PH-Sensors: {e}")
+            return None
+
+    def test_turbidity_sensor(self, device_id: int) -> Optional[Dict[str, Any]]:
+        """Test Trübungssensor und lese Messwerte"""
+        try:
+            print(f"Sende Anfrage an Trübungssensor (ID: {device_id})...")
+            
+            # Lese Trübung
+            message = struct.pack('>BBHH', device_id, 0x03, 0x0001, 0x0002)
+            message += struct.pack('<H', self.crc16(message))
+            
+            print(f"Gesendete Trübungs-Anfrage: {message.hex()}")
+            self.ser.write(message)
+            
+            response = self.ser.read(9)
+            print(f"Empfangene Trübungs-Antwort: {response.hex() if response else 'Keine Antwort'}")
+            
+            if len(response) == 9:
+                # Lese Temperatur
+                temp_message = struct.pack('>BBHH', device_id, 0x03, 0x0003, 0x0002)
+                temp_message += struct.pack('<H', self.crc16(temp_message))
+                
+                print(f"Gesendete Temperatur-Anfrage: {temp_message.hex()}")
+                self.ser.write(temp_message)
+                
+                temp_response = self.ser.read(9)
+                print(f"Empfangene Temperatur-Antwort: {temp_response.hex() if temp_response else 'Keine Antwort'}")
+                
+                if len(temp_response) == 9:
+                    turb_bytes = response[3:7]
+                    temp_bytes = temp_response[3:7]
+                    turbidity = struct.unpack('>f', turb_bytes)[0]
+                    temp_value = struct.unpack('>f', temp_bytes)[0]
+                    return {
+                        "turbidity": turbidity,
+                        "temperature": temp_value
+                    }
+            return None
+        except Exception as e:
+            print(f"Fehler beim Lesen des Trübungssensors: {e}")
+            return None
+
+    def test_flow_sensor(self, device_id: int) -> Optional[Dict[str, Any]]:
+        """Test Durchflusssensor und lese Messwerte"""
+        try:
+            print(f"Sende Anfrage an Durchflusssensor (ID: {device_id})...")
+            
+            # Lese Durchflussrate
+            message = struct.pack('>BBHH', device_id, 0x03, 0x0001, 0x0002)
+            message += struct.pack('<H', self.crc16(message))
+            
+            print(f"Gesendete Durchfluss-Anfrage: {message.hex()}")
+            self.ser.write(message)
+            
+            response = self.ser.read(9)
+            print(f"Empfangene Durchfluss-Antwort: {response.hex() if response else 'Keine Antwort'}")
+            
+            if len(response) == 9:
+                flow_bytes = response[3:7]
+                flow_rate = struct.unpack('>f', flow_bytes)[0]
+                return {
+                    "flow_rate": flow_rate
+                }
+            return None
+        except Exception as e:
+            print(f"Fehler beim Lesen des Durchflusssensors: {e}")
+            return None
 
     def run_continuous_test(self, device_type: str, device_id: int, interval: float = 1.0):
         """Führt kontinuierliche Tests mit dem gewählten Gerät durch"""
