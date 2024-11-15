@@ -12,13 +12,17 @@ import re
 
 # Configuration
 SERVER_URL = 'http://localhost:8080'
-MAIN_SCRIPT_PATH = '/home/owipex_adm/owipex-sps/h2o.py'
+# SERVER_URL = 'http://188.245.151.177:8080'
+# MAIN_SCRIPT_PATH = '/home/owipex_adm/owipex-sps/h2o.py'
+MAIN_SCRIPT_PATH = '/home/owipex_adm/RS485Reader/main.py'
 BUTTON_PIN = 9  # GPIO-Pin für den Button
 LED_PINS = {'R': 5, 'G': 6, 'B': 26}  # Angenommene Pins für die LEDs
 CHECK_INTERVAL = 10
 THINGSBOARD_SERVER = 'localhost'
+# THINGSBOARD_SERVER = '188.245.151.177'
 THINGSBOARD_PORT = 1883  # Ensure the port is an integer
-ACCESS_TOKEN = '3VuMh3c5TfbpagAO4Ndr'
+# ACCESS_TOKEN = '3VuMh3c5TfbpagAO4Ndr'
+ACCESS_TOKEN = 'WbXrS485watch9240029'
 DATA_SEND_INTERVAL = 10  # Data send interval in seconds
 
 # Initialisierung
@@ -111,6 +115,32 @@ def button_press_handler():
                     press_time = None
         except Exception as e:
             print(f"Error in button_press_handler: {e}")
+        time.sleep(0.1)
+
+
+
+def button_press_handler2():
+    global manually_stopped
+    press_time = None
+    # print(f"Button read value: {button_gpio.read()}")
+    while not stop_event.is_set():
+        try:
+            if button_gpio.read() == False:
+                press_time = time.time() if press_time is None else press_time
+                # print("BTN Press", press_time)
+            else:
+                # print("Inside button false")
+                if press_time is not None:
+                    elapsed_time = time.time() - press_time
+                    if 2 < elapsed_time <= 5:
+                        start_main_script() if not is_main_script_running else None
+                    elif elapsed_time > 5:
+                        stop_main_script() if is_main_script_running else None
+                    press_time = None
+        except Exception as e:
+            print(f"Error in button_press_handler: {e}")
+            # print("Button read value:", press_time)
+            # print("Button read value: ", button_gpio.read())
         time.sleep(0.1)
 
 def monitor_system():

@@ -77,13 +77,13 @@
       "type": "flow",
       "device_id": 40,
       "name": "FT10 FlowSensor",
-      "location": "Tank 1",
+      "location": "Neutralisation1_in",
       "transmission": {
         "formats": ["simple", "json"],
         "interval": 20
       },
       "metadata": {
-        "manufacturer": "VEGA",
+        "manufacturer": "OWIPEX",
         "model": "VEGAPULS 64",
         "serial": "43215532"
       }
@@ -93,13 +93,45 @@
       "type": "flow",
       "device_id": 41,
       "name": "FT10 FlowSensor",
-      "location": "Tank 2",
+      "location": "Neutralisation1_out",
       "transmission": {
         "formats": ["simple", "json"],
         "interval": 20
       },
       "metadata": {
         "manufacturer": "VEGA",
+        "model": "OWIPEX",
+        "serial": "43215532"
+      }
+    },
+    {
+      "id": "flow_3",
+      "type": "flow",
+      "device_id": 42,
+      "name": "FT10 FlowSensor",
+      "location": "Neutralisation2_in",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 20
+      },
+      "metadata": {
+        "manufacturer": "OWIPEX",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    },
+    {
+      "id": "flow_4",
+      "type": "flow",
+      "device_id": 43,
+      "name": "FT10 FlowSensor",
+      "location": "Neutralisation2_out",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 20
+      },
+      "metadata": {
+        "manufacturer": "OWIPEX",
         "model": "VEGAPULS 64",
         "serial": "43215532"
       }
