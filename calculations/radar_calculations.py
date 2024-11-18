@@ -18,7 +18,7 @@ class RadarCalculations:
             config (dict): Container-Konfiguration aus der sensors.json
             
         air_distance_max_level_mm: Abstand bei leerem Becken (Montageposition bis Beckenboden)
-        max_water_level_mm: Maximaler sicherer Wasserstand (Alarm-Grenze)
+        max_water_level_mm: Maximaler sicherer Wasserstand (100% Füllstand)
         normal_water_level_mm: Normaler Betriebswasserstand
         """
         self.config = config
@@ -30,8 +30,6 @@ class RadarCalculations:
         Der Sensor misst von seiner Montageposition:
         - Großer Luftabstand = niedriger Wasserstand
         - Kleiner Luftabstand = hoher Wasserstand
-        
-        measured_air_distance enthält bereits den Montage-Offset
         """
         return max(0, self.config['air_distance_max_level_mm'] - measured_air_distance)
 
@@ -39,28 +37,27 @@ class RadarCalculations:
         """
         Berechnet das aktuelle Wasservolumen in m³.
         Volumen = Grundfläche × Höhe / 1.000.000.000 (mm³ → m³)
-        
-        Erlaubt auch Volumina über dem normalen Maximum für Überlaufbereich.
         """
         return max(0, (self.config['width_mm'] * 
                       self.config['length_mm'] * 
                       actual_water_level) / 1_000_000_000)
 
-    def calculate_volume_percentage(self, actual_volume):
+    def calculate_volume_percentage(self, actual_water_level):
         """
         Berechnet den Füllstand in Prozent.
-        Kann über 100% gehen für den Überlaufbereich.
-        Verhindert nur negative Prozente.
+        
+        100% entsprechen dem max_water_level_mm
+        Werte über 100% sind möglich (Überlaufbereich)
+        Negative Werte werden verhindert
+        
+        Returns:
+            float: Füllstand in Prozent
         """
-        return max(0, (actual_volume / self.config['max_volume_m3']) * 100)
+        return max(0, (actual_water_level / self.config['max_water_level_mm']) * 100)
 
     def check_water_level_alarm(self, actual_water_level):
         """
         Überprüft ob der Wasserstand den maximalen sicheren Wasserstand überschreitet.
-        
-        Der Alarm basiert auf dem absoluten Wasserstand (max_water_level_mm),
-        nicht auf dem prozentualen Füllstand, da der Überlaufbereich 
-        berücksichtigt werden muss.
         """
         return actual_water_level > self.config['max_water_level_mm']
 

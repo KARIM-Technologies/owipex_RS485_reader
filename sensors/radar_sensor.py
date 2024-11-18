@@ -23,7 +23,7 @@ class RadarSensor(SensorBase):
             # Berechne alle abgeleiteten Werte mit dem Berechnungsmodul
             actual_water_level = self.calculations.calculate_water_level(measured_air_distance)
             actual_volume = self.calculations.calculate_volume(actual_water_level)
-            volume_percentage = self.calculations.calculate_volume_percentage(actual_volume)
+            volume_percentage = self.calculations.calculate_volume_percentage(actual_water_level)
             level_above_normal = self.calculations.calculate_level_above_normal(actual_water_level)
             water_level_alarm = self.calculations.check_water_level_alarm(actual_water_level)
             
