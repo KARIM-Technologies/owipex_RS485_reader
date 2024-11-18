@@ -14,6 +14,77 @@ import struct
 import crcmod.predefined
 import logging
 import time
+import json
+
+# Default Konstanten für Radar-Sensor Konfiguration (als Fallback)
+DEFAULT_CONFIG = {
+    # Container Dimensionen (in mm)
+    "CONTAINER_WIDTH": 2000,  # Breite des Containers
+    "CONTAINER_LENGTH": 3000,  # Länge des Containers
+    "CONTAINER_MAX_VOLUME": 12.0,  # Maximales Volumen in m³
+
+    # Wasserstands-Grenzwerte (in mm)
+    "AIR_DISTANCE_MAX_LEVEL": 2000,  # Maximale Luftdistanz bei leerem Container
+    "MAX_WATER_LEVEL": 1800,  # Maximaler erlaubter Wasserstand
+    "NORMAL_WATER_LEVEL": 1500  # Normaler Betriebswasserstand
+}
+
+class RadarSensorConfig:
+    def __init__(self, sensor_id):
+        self.sensor_id = sensor_id
+        self.config = self._load_config()
+        
+    def _load_config(self):
+        """Lädt die Konfiguration für den spezifischen Radar-Sensor"""
+        try:
+            with open('config/sensors.json', 'r') as f:
+                config = json.load(f)
+                
+            # Suche nach dem Sensor mit der entsprechenden ID
+            for sensor in config['sensors']:
+                if sensor['id'] == f"radar_{self.sensor_id}" and sensor['type'] == 'radar':
+                    return {
+                        'width_mm': sensor['container_config']['width_mm'],
+                        'length_mm': sensor['container_config']['length_mm'],
+                        'max_volume_m3': sensor['container_config']['max_volume_m3'],
+                        'air_distance_max_level_mm': sensor['container_config']['air_distance_max_level_mm'],
+                        'max_water_level_mm': sensor['container_config']['max_water_level_mm'],
+                        'normal_water_level_mm': sensor['container_config']['normal_water_level_mm']
+                    }
+        except (FileNotFoundError, KeyError, json.JSONDecodeError):
+            logging.warning(f"Keine JSON-Konfiguration gefunden, verwende Default-Werte")
+        
+        # Fallback auf Default-Werte
+        return {
+            'width_mm': DEFAULT_CONFIG['CONTAINER_WIDTH'],
+            'length_mm': DEFAULT_CONFIG['CONTAINER_LENGTH'],
+            'max_volume_m3': DEFAULT_CONFIG['CONTAINER_MAX_VOLUME'],
+            'air_distance_max_level_mm': DEFAULT_CONFIG['AIR_DISTANCE_MAX_LEVEL'],
+            'max_water_level_mm': DEFAULT_CONFIG['MAX_WATER_LEVEL'],
+            'normal_water_level_mm': DEFAULT_CONFIG['NORMAL_WATER_LEVEL']
+        }
+
+    def calculate_water_level(self, measured_air_distance):
+        """Berechnet den aktuellen Wasserstand in mm."""
+        return self.config['air_distance_max_level_mm'] - measured_air_distance
+
+    def calculate_volume(self, actual_water_level):
+        """Berechnet das aktuelle Wasservolumen in m³."""
+        return (self.config['width_mm'] * 
+                self.config['length_mm'] * 
+                actual_water_level) / 1_000_000_000
+
+    def calculate_volume_percentage(self, actual_volume):
+        """Berechnet den Füllstand in Prozent."""
+        return (actual_volume / self.config['max_volume_m3']) * 100
+
+    def check_water_level_alarm(self, actual_water_level):
+        """Überprüft ob der Wasserstand den Grenzwert überschreitet."""
+        return actual_water_level > self.config['max_water_level_mm']
+
+    def calculate_level_above_normal(self, actual_water_level):
+        """Berechnet die Abweichung vom normalen Wasserstand in mm."""
+        return actual_water_level - self.config['normal_water_level_mm']
 
 def setup_logging():
     logging.basicConfig(

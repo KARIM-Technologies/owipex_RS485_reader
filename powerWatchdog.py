@@ -224,7 +224,7 @@ def get_data():
     avg_load = round((cpu_usage + ram_usage) / 2, 2)
     cpu_temperature = read_cpu_temperature()
 
-    rssi, rsrq, rsrp, snr = get_mobile_signal()
+    # rssi, rsrq, rsrp, snr = get_mobile_signal()
 
     attributes = {
         'ip_address': ip_address,
@@ -236,11 +236,7 @@ def get_data():
         'swap_memory_usage': swap_memory_usage,
         'boot_time': boot_time,
         'avg_load': avg_load,
-        'cpu_temperature': cpu_temperature,
-        'rssi': rssi,
-        'rsrq': rsrq,
-        'rsrp': rsrp,
-        'snr': snr
+        'cpu_temperature': cpu_temperature
     }
     return attributes
 
