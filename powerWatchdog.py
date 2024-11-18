@@ -9,21 +9,23 @@ from tb_gateway_mqtt import TBDeviceMqttClient
 import sys
 import os
 import re
+from dotenv import load_dotenv
 
-# Configuration
-SERVER_URL = 'http://localhost:8080'
-# SERVER_URL = 'http://188.245.151.177:8080'
-# MAIN_SCRIPT_PATH = '/home/owipex_adm/owipex-sps/h2o.py'
-MAIN_SCRIPT_PATH = '/home/owipex_adm/RS485Reader/main.py'
+# Load environment variables
+load_dotenv('.envRS485')
+
+# Hardware Configuration
 BUTTON_PIN = 9  # GPIO-Pin für den Button
-LED_PINS = {'R': 5, 'G': 6, 'B': 26}  # Angenommene Pins für die LEDs
+LED_PINS = {'R': 5, 'G': 6, 'B': 26}  # Pins für die LEDs
 CHECK_INTERVAL = 10
-THINGSBOARD_SERVER = 'localhost'
-# THINGSBOARD_SERVER = '188.245.151.177'
-THINGSBOARD_PORT = 1883  # Ensure the port is an integer
-# ACCESS_TOKEN = '3VuMh3c5TfbpagAO4Ndr'
-ACCESS_TOKEN = 'WbXrS485watch9240029'
-DATA_SEND_INTERVAL = 10  # Data send interval in seconds
+DATA_SEND_INTERVAL = int(os.getenv('WATCHDOG_DATA_SEND_INTERVAL', '10'))
+
+# Server Configuration
+SERVER_URL = os.getenv('WATCHDOG_SERVER_URL', 'http://localhost:8080')
+MAIN_SCRIPT_PATH = os.getenv('WATCHDOG_MAIN_SCRIPT_PATH', '/home/owipex_adm/RS485Reader/main.py')
+THINGSBOARD_SERVER = os.getenv('WATCHDOG_THINGSBOARD_SERVER', 'localhost')
+THINGSBOARD_PORT = int(os.getenv('WATCHDOG_THINGSBOARD_PORT', '1883'))
+ACCESS_TOKEN = os.getenv('WATCHDOG_ACCESS_TOKEN', 'WbXrS485watch9240029')
 
 # Initialisierung
 try:
