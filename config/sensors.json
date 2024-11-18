@@ -1,33 +1,41 @@
 {
+  "rs485_settings": {
+    "port": "/dev/ttyS1",
+    "baudrate": 9600,
+    "parity": "N",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 1
+  },
   "sensors": [
-    {
-      "id": "ph_1",
-      "type": "ph",
-      "device_id": 3,
-      "name": "PH Sensor 1",
-      "location": "Tank 1",
-      "transmission": {
-        "formats": ["simple", "json"],
-        "interval": 15
-      },
-      "metadata": {
-        "manufacturer": "Endress+Hauser",
-        "model": "Liquiline M CM42",
-        "serial": "DJ3422N"
-      }
-    },
     {
       "id": "turbidity_1",
       "type": "turbidity",
       "device_id": 2,
       "name": "Trübungssensor 1",
-      "location": "Einlauf",
+      "location": "Kundenbecken",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 10
+        "interval": 20
       },
       "metadata": {
-        "manufacturer": "Hach",
+        "manufacturer": "OWIPEX",
+        "model": "TU5300sc",
+        "serial": "18D4422"
+      }
+    },
+    {
+      "id": "turbidity_2",
+      "type": "turbidity",
+      "device_id": 22,
+      "name": "Trübungssensor 2",
+      "location": "Filterbecken",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 20
+      },
+      "metadata": {
+        "manufacturer": "OWIPEX",
         "model": "TU5300sc",
         "serial": "18D4422"
       }
@@ -35,12 +43,12 @@
     {
       "id": "radar_1",
       "type": "radar",
-      "device_id": 11,
-      "name": "Radar Haupttank",
+      "device_id": 1,
+      "name": "Radar 1",
       "location": "Tank 1",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 60
+        "interval": 20
       },
       "metadata": {
         "manufacturer": "VEGA",
@@ -59,17 +67,17 @@
     {
       "id": "radar_2",
       "type": "radar",
-      "device_id": 12,
-      "name": "Radar Prozesswasser",
-      "location": "Produktionshalle 2",
+      "device_id": 11,
+      "name": "Radar 2",
+      "location": "Tank 2",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 60
+        "interval": 20
       },
       "metadata": {
         "manufacturer": "VEGA",
         "model": "VEGAPULS 64",
-        "serial": "43215533"
+        "serial": "43215532"
       },
       "container_config": {
         "width_mm": 1800,
@@ -83,15 +91,63 @@
     {
       "id": "flow_1",
       "type": "flow",
-      "device_id": 10,
-      "name": "Ultrasonic 1",
-      "location": "Tank 1",
+      "device_id": 40,
+      "name": "FT10 FlowSensor",
+      "location": "Neutralisation1_in",
       "transmission": {
         "formats": ["simple", "json"],
-        "interval": 60
+        "interval": 20
       },
       "metadata": {
-        "manufacturer": "VEGA",
+        "manufacturer": "OWIPEX",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    },
+    {
+      "id": "flow_2",
+      "type": "flow",
+      "device_id": 41,
+      "name": "FT10 FlowSensor",
+      "location": "Neutralisation1_out",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 20
+      },
+      "metadata": {
+        "manufacturer": "OWIPEX",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    },
+    {
+      "id": "flow_3",
+      "type": "flow",
+      "device_id": 42,
+      "name": "FT10 FlowSensor",
+      "location": "Neutralisation2_in",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 20
+      },
+      "metadata": {
+        "manufacturer": "OWIPEX",
+        "model": "VEGAPULS 64",
+        "serial": "43215532"
+      }
+    },
+    {
+      "id": "flow_4",
+      "type": "flow",
+      "device_id": 43,
+      "name": "FT10 FlowSensor",
+      "location": "Neutralisation2_out",
+      "transmission": {
+        "formats": ["simple", "json"],
+        "interval": 20
+      },
+      "metadata": {
+        "manufacturer": "OWIPEX",
         "model": "VEGAPULS 64",
         "serial": "43215532"
       }
