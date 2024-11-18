@@ -43,14 +43,8 @@ class RadarSensorConfig:
             # Suche nach dem Sensor mit der entsprechenden ID
             for sensor in config['sensors']:
                 if sensor['id'] == f"radar_{self.sensor_id}" and sensor['type'] == 'radar':
-                    return {
-                        'width_mm': sensor['container_config']['width_mm'],
-                        'length_mm': sensor['container_config']['length_mm'],
-                        'max_volume_m3': sensor['container_config']['max_volume_m3'],
-                        'air_distance_max_level_mm': sensor['container_config']['air_distance_max_level_mm'],
-                        'max_water_level_mm': sensor['container_config']['max_water_level_mm'],
-                        'normal_water_level_mm': sensor['container_config']['normal_water_level_mm']
-                    }
+                    return sensor['container_config']
+                    
         except (FileNotFoundError, KeyError, json.JSONDecodeError):
             logging.warning(f"Keine JSON-Konfiguration gefunden, verwende Default-Werte")
         
@@ -63,28 +57,6 @@ class RadarSensorConfig:
             'max_water_level_mm': DEFAULT_CONFIG['MAX_WATER_LEVEL'],
             'normal_water_level_mm': DEFAULT_CONFIG['NORMAL_WATER_LEVEL']
         }
-
-    def calculate_water_level(self, measured_air_distance):
-        """Berechnet den aktuellen Wasserstand in mm."""
-        return self.config['air_distance_max_level_mm'] - measured_air_distance
-
-    def calculate_volume(self, actual_water_level):
-        """Berechnet das aktuelle Wasservolumen in m³."""
-        return (self.config['width_mm'] * 
-                self.config['length_mm'] * 
-                actual_water_level) / 1_000_000_000
-
-    def calculate_volume_percentage(self, actual_volume):
-        """Berechnet den Füllstand in Prozent."""
-        return (actual_volume / self.config['max_volume_m3']) * 100
-
-    def check_water_level_alarm(self, actual_water_level):
-        """Überprüft ob der Wasserstand den Grenzwert überschreitet."""
-        return actual_water_level > self.config['max_water_level_mm']
-
-    def calculate_level_above_normal(self, actual_water_level):
-        """Berechnet die Abweichung vom normalen Wasserstand in mm."""
-        return actual_water_level - self.config['normal_water_level_mm']
 
 def setup_logging():
     logging.basicConfig(
