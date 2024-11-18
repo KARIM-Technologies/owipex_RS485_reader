@@ -59,9 +59,9 @@
         "width_mm": 2500,
         "length_mm": 4000,
         "max_volume_m3": 30.0,
-        "air_distance_max_level_mm": 2000,
+        "air_distance_max_level_mm": 500,
         "max_water_level_mm": 1400,
-        "normal_water_level_mm": 900
+        "normal_water_level_mm": 1000
       }
     },
     {
@@ -83,9 +83,9 @@
         "width_mm": 1800,
         "length_mm": 2400,
         "max_volume_m3": 8.64,
-        "air_distance_max_level_mm": 2000,
+        "air_distance_max_level_mm": 500,
         "max_water_level_mm": 1400,
-        "normal_water_level_mm": 900
+        "normal_water_level_mm": 1000
       }
     },
     {
