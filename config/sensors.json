@@ -65,30 +65,6 @@
       }
     },
     {
-      "id": "radar_2",
-      "type": "radar",
-      "device_id": 11,
-      "name": "Radar 2",
-      "location": "Filterbecken",
-      "transmission": {
-        "formats": ["simple", "json"],
-        "interval": 20
-      },
-      "metadata": {
-        "manufacturer": "VEGA",
-        "model": "VEGAPULS 64",
-        "serial": "43215532"
-      },
-      "container_config": {
-        "width_mm": 1800,
-        "length_mm": 2400,
-        "max_volume_m3": 8.64,
-        "air_distance_max_level_mm": 500,
-        "max_water_level_mm": 1400,
-        "normal_water_level_mm": 1000
-      }
-    },
-    {
       "id": "flow_1",
       "type": "flow",
       "device_id": 40,
