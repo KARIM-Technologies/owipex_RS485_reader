@@ -184,6 +184,7 @@ class SensorManager:
         """Main run loop"""
         self.logger.info("Starte SensorManager...")
         self.running = True
+        error_counts = {}  # Zähler für Fehler pro Sensor
         
         while self.running:
             current_time = time.time()
@@ -195,53 +196,104 @@ class SensorManager:
                 if self.should_read_sensor(sensor_info)
             ]
             
-            # Verarbeite jeden Sensor mit Pause zwischen den Abfragen
+            # Verarbeite jeden Sensor mit Fehlerbehandlung
             for sensor_id, sensor_info in sensors_to_read:
                 try:
+                    # Prüfe ob Sensor zu oft fehlgeschlagen ist
+                    if error_counts.get(sensor_id, 0) >= 5:
+                        if current_time - sensor_info.get('last_error_log', 0) > 300:  # Alle 5 Minuten loggen
+                            self.logger.warning(f"Sensor {sensor_id} temporär deaktiviert wegen zu vieler Fehler")
+                            sensor_info['last_error_log'] = current_time
+                        continue
+                    
                     # Warte zwischen den Sensor-Abfragen
-                    time.sleep(0.5)  # 500ms Pause zwischen Sensor-Abfragen
+                    time.sleep(0.5)
                     
                     self.logger.debug(f"Lese Sensor {sensor_id}...")
                     sensor_data = self.read_sensor_data(sensor_id, sensor_info)
                     
                     if sensor_data:
-                        # Format data according to sensor configuration
+                        # Erfolgreicher Read - Reset Error Counter
+                        error_counts[sensor_id] = 0
+                        
+                        # Format and send data
                         formatted_data = self.format_sensor_data(sensor_id, sensor_info, sensor_data)
                         self.send_telemetry(formatted_data)
                         sensor_info['last_read'] = current_time
                         
                         # Warte nach erfolgreicher Übertragung
-                        time.sleep(0.2)  # 200ms Pause nach erfolgreicher Abfrage
-                        
+                        time.sleep(0.2)
+                    else:
+                        # Erhöhe Fehlerzähler bei None-Rückgabe
+                        error_counts[sensor_id] = error_counts.get(sensor_id, 0) + 1
+                        self.logger.warning(f"Keine Daten von Sensor {sensor_id} erhalten (Fehler: {error_counts[sensor_id]})")
+                    
                 except Exception as e:
-                    self.logger.error(f"Fehler beim Lesen von Sensor {sensor_id}: {e}")
+                    # Fehlerbehandlung für einzelne Sensoren
+                    error_counts[sensor_id] = error_counts.get(sensor_id, 0) + 1
+                    self.logger.error(f"Fehler beim Lesen von Sensor {sensor_id} (Fehler: {error_counts[sensor_id]}): {e}")
+                    
+                    # Sende Fehlerstatus an ThingsBoard wenn möglich
+                    try:
+                        error_telemetry = {
+                            "simple": {
+                                f"{sensor_id}_error": str(e),
+                                f"{sensor_id}_error_count": error_counts[sensor_id]
+                            }
+                        }
+                        self.send_telemetry(error_telemetry)
+                    except:
+                        pass  # Ignoriere Fehler beim Senden des Fehlerstatus
+                    
                     continue
+                
+                # Prüfe ob Sensor sich erholt hat
+                if error_counts.get(sensor_id, 0) > 0 and sensor_data:
+                    self.logger.info(f"Sensor {sensor_id} hat sich erholt nach {error_counts[sensor_id]} Fehlern")
+                    error_counts[sensor_id] = 0
+            
+            # Automatische Reaktivierung von Sensoren nach einer Stunde
+            for sensor_id in list(error_counts.keys()):
+                if error_counts[sensor_id] >= 5:
+                    sensor_info = self.sensors.get(sensor_id)
+                    if sensor_info and (current_time - sensor_info.get('last_read', 0)) > 3600:
+                        self.logger.info(f"Versuche Sensor {sensor_id} nach einer Stunde zu reaktivieren")
+                        error_counts[sensor_id] = 0
             
             # Längere Pause am Ende eines Durchlaufs
             time.sleep(1.0)
 
     def send_telemetry(self, data):
-        """Send telemetry data to ThingsBoard"""
+        """Send telemetry data to ThingsBoard with retry"""
         if not self.client or not data:
             return
 
-        try:
-            # Sende Simple-Format Daten
-            if data.get("simple"):
-                self.client.send_telemetry(data["simple"])
-                self.logger.debug("Simple format Telemetrie erfolgreich gesendet")
+        max_retries = 3
+        retry_delay = 1.0  # Sekunden
+        
+        for attempt in range(max_retries):
+            try:
+                # Sende Simple-Format Daten
+                if data.get("simple"):
+                    self.client.send_telemetry(data["simple"])
+                    self.logger.debug("Simple format Telemetrie erfolgreich gesendet")
+                    
+                # Sende JSON-Format Daten - jetzt einzeln pro Sensor
+                if data.get("json"):
+                    for sensor_data_key, sensor_data in data["json"].items():
+                        self.client.send_telemetry({
+                            sensor_data_key: sensor_data
+                        })
+                        self.logger.debug(f"JSON format Telemetrie für {sensor_data_key} erfolgreich gesendet")
                 
-            # Sende JSON-Format Daten - jetzt einzeln pro Sensor
-            if data.get("json"):
-                for sensor_data_key, sensor_data in data["json"].items():
-                    self.client.send_telemetry({
-                        sensor_data_key: sensor_data
-                    })
-                    self.logger.debug(f"JSON format Telemetrie für {sensor_data_key} erfolgreich gesendet")
+                return  # Erfolgreich gesendet, verlasse die Funktion
                 
-            self.logger.info("Alle Telemetrie-Daten erfolgreich gesendet")
-        except Exception as e:
-            self.logger.error(f"Fehler beim Senden der Telemetrie: {e}")
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"Fehler beim Senden der Telemetrie (Versuch {attempt + 1}): {e}")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.error(f"Fehler beim Senden der Telemetrie nach {max_retries} Versuchen: {e}")
                 
     def stop(self):
         """Stop the sensor manager"""
