@@ -195,18 +195,30 @@ class SensorManager:
                 if self.should_read_sensor(sensor_info)
             ]
             
-            # Verarbeite jeden Sensor
+            # Verarbeite jeden Sensor mit Pause zwischen den Abfragen
             for sensor_id, sensor_info in sensors_to_read:
-                sensor_data = self.read_sensor_data(sensor_id, sensor_info)
-                
-                if sensor_data:
-                    # Format data according to sensor configuration
-                    formatted_data = self.format_sensor_data(sensor_id, sensor_info, sensor_data)
-                    self.send_telemetry(formatted_data)
-                    sensor_info['last_read'] = current_time
+                try:
+                    # Warte zwischen den Sensor-Abfragen
+                    time.sleep(0.5)  # 500ms Pause zwischen Sensor-Abfragen
+                    
+                    self.logger.debug(f"Lese Sensor {sensor_id}...")
+                    sensor_data = self.read_sensor_data(sensor_id, sensor_info)
+                    
+                    if sensor_data:
+                        # Format data according to sensor configuration
+                        formatted_data = self.format_sensor_data(sensor_id, sensor_info, sensor_data)
+                        self.send_telemetry(formatted_data)
+                        sensor_info['last_read'] = current_time
+                        
+                        # Warte nach erfolgreicher Übertragung
+                        time.sleep(0.2)  # 200ms Pause nach erfolgreicher Abfrage
+                        
+                except Exception as e:
+                    self.logger.error(f"Fehler beim Lesen von Sensor {sensor_id}: {e}")
+                    continue
             
-            # Kurze Pause um CPU-Last zu reduzieren
-            time.sleep(0.1)
+            # Längere Pause am Ende eines Durchlaufs
+            time.sleep(1.0)
 
     def send_telemetry(self, data):
         """Send telemetry data to ThingsBoard"""
