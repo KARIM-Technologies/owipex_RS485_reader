@@ -5,6 +5,9 @@ from threading import Thread, Lock
 import time
 import logging
 
+# Logger für ModbusManager
+logger = logging.getLogger('ModbusManager')
+
 class ModbusClient:
     def __init__(self, device_manager, device_id):
         self.device_manager = device_manager
@@ -155,76 +158,41 @@ class DeviceManager:
         """Special method for reading flow sensor data with 32-bit float format"""
         with self._lock:
             try:
-                # Längere Pause vor dem Senden, um sicherzustellen dass der Bus frei ist
-                time.sleep(0.3)
-                
-                # Mehrere Versuche für die Kommunikation
-                max_retries = 3
-                for attempt in range(max_retries):
-                    try:
-                        function_code = 0x03
-                        message = struct.pack('>B B H H', device_id, function_code, register_address, 2)
-                        crc16 = crcmod.predefined.mkPredefinedCrcFun('modbus')(message)
-                        message += struct.pack('<H', crc16)
+                # Einfache Version wie im Port-Tester
+                function_code = 0x03
+                message = struct.pack('>BBHH', device_id, function_code, register_address, 2)
+                message += struct.pack('<H', crcmod.predefined.mkPredefinedCrcFun('modbus')(message))
 
-                        # Clear input buffer and flush output
-                        self.ser.reset_input_buffer()
-                        self.ser.reset_output_buffer()
-                        
-                        # Log request for debugging
-                        logger.debug(f"Sende an Flow Sensor {device_id}: {message.hex()}")
-                        
-                        # Send request
-                        self.ser.write(message)
-                        self.ser.flush()  # Warte bis alles gesendet wurde
-                        
-                        # Dynamische Wartezeit basierend auf der Geräte-ID
-                        # Höhere IDs bekommen etwas mehr Zeit
-                        wait_time = 0.2 + (device_id / 1000.0)  # 200ms + kleine Zusatzzeit
-                        time.sleep(wait_time)
-                        
-                        # Read response
-                        response = self.ser.read(9)
-                        logger.debug(f"Antwort von Flow Sensor {device_id}: {response.hex() if response else 'Keine Antwort'}")
-                        
-                        if len(response) == 9:
-                            # CRC check
-                            received_crc = struct.unpack('<H', response[-2:])[0]
-                            calculated_crc = crcmod.predefined.mkPredefinedCrcFun('modbus')(response[:-2])
-                            
-                            if received_crc == calculated_crc:
-                                # Extract and process data
-                                data = response[3:-2]
-                                try:
-                                    value = struct.unpack('>f', data)[0]
-                                    self.last_read_values[(device_id, register_address)] = value
-                                    return value
-                                except struct.error as e:
-                                    logger.error(f"Fehler beim Entpacken der Daten von Flow Sensor {device_id}: {e}")
-                                    continue  # Versuche es erneut
-                            else:
-                                logger.warning(f"CRC-Fehler bei Flow Sensor {device_id} (Versuch {attempt + 1})")
-                                continue  # Versuche es erneut
-                        else:
-                            logger.warning(f"Unvollständige Antwort von Flow Sensor {device_id}: {len(response)} Bytes (Versuch {attempt + 1})")
-                            continue  # Versuche es erneut
-                            
-                    except Exception as e:
-                        logger.warning(f"Fehler beim Lesen von Flow Sensor {device_id} (Versuch {attempt + 1}): {e}")
-                        if attempt < max_retries - 1:
-                            time.sleep(0.5)  # Warte länger zwischen den Versuchen
-                        continue
-                        
-                # Wenn alle Versuche fehlgeschlagen sind
-                logger.error(f"Konnte Flow Sensor {device_id} nach {max_retries} Versuchen nicht lesen")
+                # Clear buffers
+                self.ser.reset_input_buffer()
+                self.ser.reset_output_buffer()
+                
+                # Send request
+                self.ser.write(message)
+                self.ser.flush()
+                
+                # Fixed wait time
+                time.sleep(0.1)
+                
+                # Read response
+                response = self.ser.read(9)  # Erwarte genau 9 Bytes
+                
+                if len(response) == 9:
+                    # CRC check
+                    received_crc = struct.unpack('<H', response[-2:])[0]
+                    calculated_crc = crcmod.predefined.mkPredefinedCrcFun('modbus')(response[:-2])
+                    
+                    if received_crc == calculated_crc:
+                        data = response[3:-2]
+                        value = struct.unpack('>f', data)[0]
+                        self.last_read_values[(device_id, register_address)] = value
+                        return value
+                
                 return self.last_read_values.get((device_id, register_address), None)
                     
             except Exception as e:
-                logger.error(f"Kritischer Fehler beim Lesen von Flow Sensor {device_id}: {e}")
+                logger.error(f"Fehler beim Lesen von Flow Sensor {device_id}: {e}")
                 return self.last_read_values.get((device_id, register_address), None)
-            finally:
-                # Ensure the bus is clear after communication
-                time.sleep(0.1)
 
     def write_registers(self, device_id, start_address, values):
         """Write multiple registers using Modbus function code 0x10"""
