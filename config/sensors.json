@@ -1,6 +1,6 @@
 {
   "rs485_settings": {
-    "port": "/dev/ttyS1",
+    "port": "/dev/ttyS0",
     "baudrate": 9600,
     "parity": "N",
     "stopbits": 1,
